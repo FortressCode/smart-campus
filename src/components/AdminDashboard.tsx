@@ -46,7 +46,7 @@ export default function AdminDashboard() {
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [selectedRole, setSelectedRole] = useState("");
   const [roleUpdated, setRoleUpdated] = useState(false);
-  const [activeSection, setActiveSection] = useState("dashboard");
+  const [activeSection, setActiveSection] = useState("events");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -77,7 +77,7 @@ export default function AdminDashboard() {
   const [newUserRole, setNewUserRole] = useState("student");
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [addUserError, setAddUserError] = useState("");
-  
+
   // Delete User Modal State
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState<any>(null);
@@ -91,6 +91,28 @@ export default function AdminDashboard() {
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(true);
   const [strongPasswordEnabled, setStrongPasswordEnabled] = useState(true);
   const [sessionTimeout, setSessionTimeout] = useState(30);
+
+  // Event management state
+  const [events, setEvents] = useState<any[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(true);
+  const [isAddingEvent, setIsAddingEvent] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<string | null>(null);
+
+  // Form states for adding/editing events
+  const [eventTitle, setEventTitle] = useState("");
+  const [eventDescription, setEventDescription] = useState("");
+  const [eventLocation, setEventLocation] = useState("");
+  const [eventOrganizer, setEventOrganizer] = useState("");
+  const [eventPartnership, setEventPartnership] = useState("");
+  const [eventCategory, setEventCategory] = useState("Academic");
+  const [eventStartDate, setEventStartDate] = useState("");
+  const [eventEndDate, setEventEndDate] = useState("");
+  const [eventStartTime, setEventStartTime] = useState("");
+  const [eventEndTime, setEventEndTime] = useState("");
+  const [eventExpectedParticipants, setEventExpectedParticipants] = useState(0);
+  const [eventActualParticipants, setEventActualParticipants] = useState(0);
+  const [eventSuccessRate, setEventSuccessRate] = useState(0);
+  const [eventStatus, setEventStatus] = useState("Upcoming");
 
   // Fetch all users when component mounts
   useEffect(() => {
@@ -122,7 +144,7 @@ export default function AdminDashboard() {
         // Get session timeout from AuthContext
         const timeout = await getSessionTimeout();
         setSessionTimeout(timeout);
-        
+
         // Get other security settings from Firestore
         const securitySettingsRef = doc(db, "settings", "security");
         const unsubscribe = onSnapshot(securitySettingsRef, (doc) => {
@@ -133,13 +155,13 @@ export default function AdminDashboard() {
             setSessionTimeout(data.sessionTimeoutMinutes || 30);
           }
         });
-        
+
         return unsubscribe;
       } catch (error) {
         console.error("Error loading security settings:", error);
       }
     }
-    
+
     loadSecuritySettings();
   }, [getSessionTimeout]);
 
@@ -200,6 +222,8 @@ export default function AdminDashboard() {
         return renderSettingsSection();
       case "schedules":
         return renderSchedulesSection();
+      case "events":
+        return renderEventsSection();
       default:
         return renderDashboardSection();
     }
@@ -360,11 +384,14 @@ export default function AdminDashboard() {
 
       {/* Success message */}
       {success && (
-        <div className="alert alert-success alert-dismissible fade show" role="alert">
+        <div
+          className="alert alert-success alert-dismissible fade show"
+          role="alert"
+        >
           {success}
-          <button 
-            type="button" 
-            className="btn-close" 
+          <button
+            type="button"
+            className="btn-close"
             onClick={() => setSuccess("")}
             aria-label="Close"
           ></button>
@@ -373,11 +400,14 @@ export default function AdminDashboard() {
 
       {/* Error message */}
       {error && (
-        <div className="alert alert-danger alert-dismissible fade show" role="alert">
+        <div
+          className="alert alert-danger alert-dismissible fade show"
+          role="alert"
+        >
           {error}
-          <button 
-            type="button" 
-            className="btn-close" 
+          <button
+            type="button"
+            className="btn-close"
             onClick={() => setError("")}
             aria-label="Close"
           ></button>
@@ -391,7 +421,7 @@ export default function AdminDashboard() {
             <div className="d-flex justify-content-between align-items-center mb-4">
               <h5 className="mb-0">All Users</h5>
               <div>
-                <button 
+                <button
                   className="btn btn-sm btn-primary"
                   onClick={() => setShowAddUserModal(true)}
                 >
@@ -481,7 +511,7 @@ export default function AdminDashboard() {
                               >
                                 <i className="bi bi-pencil me-1"></i> Edit
                               </button>
-                              <button 
+                              <button
                                 className="btn btn-outline-danger"
                                 onClick={() => confirmDelete(user)}
                               >
@@ -502,7 +532,12 @@ export default function AdminDashboard() {
 
       {/* Add User Modal */}
       {showAddUserModal && (
-        <div className="modal d-block" tabIndex={-1} role="dialog" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div
+          className="modal d-block"
+          tabIndex={-1}
+          role="dialog"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+        >
           <div className="modal-dialog" role="document">
             <div className="modal-content">
               <div className="modal-header">
@@ -525,7 +560,9 @@ export default function AdminDashboard() {
                     </div>
                   )}
                   <div className="mb-3">
-                    <label htmlFor="newUserName" className="form-label">Name</label>
+                    <label htmlFor="newUserName" className="form-label">
+                      Name
+                    </label>
                     <input
                       type="text"
                       className="form-control"
@@ -536,7 +573,9 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div className="mb-3">
-                    <label htmlFor="newUserEmail" className="form-label">Email</label>
+                    <label htmlFor="newUserEmail" className="form-label">
+                      Email
+                    </label>
                     <input
                       type="email"
                       className="form-control"
@@ -547,7 +586,9 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div className="mb-3">
-                    <label htmlFor="newUserPassword" className="form-label">Password</label>
+                    <label htmlFor="newUserPassword" className="form-label">
+                      Password
+                    </label>
                     <input
                       type="password"
                       className="form-control"
@@ -558,7 +599,9 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div className="mb-3">
-                    <label htmlFor="newUserRole" className="form-label">Role</label>
+                    <label htmlFor="newUserRole" className="form-label">
+                      Role
+                    </label>
                     <select
                       className="form-select"
                       id="newUserRole"
@@ -590,7 +633,11 @@ export default function AdminDashboard() {
                   >
                     {isAddingUser ? (
                       <>
-                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        <span
+                          className="spinner-border spinner-border-sm me-2"
+                          role="status"
+                          aria-hidden="true"
+                        ></span>
                         Adding...
                       </>
                     ) : (
@@ -606,7 +653,12 @@ export default function AdminDashboard() {
 
       {/* Delete User Confirmation Modal */}
       {showDeleteModal && userToDelete && (
-        <div className="modal d-block" tabIndex={-1} role="dialog" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div
+          className="modal d-block"
+          tabIndex={-1}
+          role="dialog"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+        >
           <div className="modal-dialog" role="document">
             <div className="modal-content">
               <div className="modal-header">
@@ -619,8 +671,13 @@ export default function AdminDashboard() {
                 ></button>
               </div>
               <div className="modal-body">
-                <p>Are you sure you want to delete the user: <strong>{userToDelete.name}</strong>?</p>
-                <p className="text-danger"><small>This action cannot be undone.</small></p>
+                <p>
+                  Are you sure you want to delete the user:{" "}
+                  <strong>{userToDelete.name}</strong>?
+                </p>
+                <p className="text-danger">
+                  <small>This action cannot be undone.</small>
+                </p>
               </div>
               <div className="modal-footer">
                 <button
@@ -638,7 +695,11 @@ export default function AdminDashboard() {
                 >
                   {isDeleting ? (
                     <>
-                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                      <span
+                        className="spinner-border spinner-border-sm me-2"
+                        role="status"
+                        aria-hidden="true"
+                      ></span>
                       Deleting...
                     </>
                   ) : (
@@ -900,10 +961,11 @@ export default function AdminDashboard() {
             max="480"
           />
           <small className="text-muted">
-            User will be automatically logged out after this period of inactivity (minimum 1 minute).
+            User will be automatically logged out after this period of
+            inactivity (minimum 1 minute).
           </small>
         </div>
-        <button 
+        <button
           className="btn btn-primary"
           onClick={handleUpdateSecuritySettings}
         >
@@ -1488,29 +1550,29 @@ export default function AdminDashboard() {
   // Add new user function
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate inputs
     if (!newUserName || !newUserEmail || !newUserPassword) {
       setAddUserError("All fields are required");
       return;
     }
-    
+
     try {
       setIsAddingUser(true);
       setAddUserError("");
-      
+
       // Call adminCreateUser function from AuthContext
       const result = await adminCreateUser(
-        newUserEmail, 
-        newUserPassword, 
-        newUserName, 
+        newUserEmail,
+        newUserPassword,
+        newUserName,
         newUserRole
       );
-      
+
       if (!result.success) {
         throw new Error(result.error);
       }
-      
+
       // Refresh user list
       const usersCollection = collection(db, "users");
       const userSnapshot = await getDocs(usersCollection);
@@ -1519,17 +1581,17 @@ export default function AdminDashboard() {
         ...doc.data(),
       }));
       setUsers(userList);
-      
+
       // Reset form and close modal
       setNewUserName("");
       setNewUserEmail("");
       setNewUserPassword("");
       setNewUserRole("student");
       setShowAddUserModal(false);
-      
+
       // Show success message
       setSuccess(`User ${newUserName} added successfully`);
-      
+
       // Clear success message after 3 seconds
       setTimeout(() => {
         setSuccess("");
@@ -1545,25 +1607,25 @@ export default function AdminDashboard() {
   // Handle delete user
   const handleDeleteUser = async () => {
     if (!userToDelete) return;
-    
+
     try {
       setIsDeleting(true);
       setError("");
-      
+
       // Delete user from Firestore
       const userDocRef = doc(db, "users", userToDelete.id);
       await deleteDoc(userDocRef);
-      
+
       // Update the users state by filtering out the deleted user
-      setUsers(users.filter(user => user.id !== userToDelete.id));
-      
+      setUsers(users.filter((user) => user.id !== userToDelete.id));
+
       // Show success message
       setSuccess(`User ${userToDelete.name} deleted successfully`);
-      
+
       // Reset state and close modal
       setUserToDelete(null);
       setShowDeleteModal(false);
-      
+
       // Clear success message after 3 seconds
       setTimeout(() => {
         setSuccess("");
@@ -1575,7 +1637,7 @@ export default function AdminDashboard() {
       setIsDeleting(false);
     }
   };
-  
+
   // Open delete confirmation modal
   const confirmDelete = (user: any) => {
     setUserToDelete(user);
@@ -1590,27 +1652,774 @@ export default function AdminDashboard() {
         strongPasswordEnabled,
         sessionTimeout
       );
-      
+
       // Show success message
       setSuccess("Security settings updated successfully");
-      
+
       // Scroll to top to make sure user sees the message
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      
+      window.scrollTo({ top: 0, behavior: "smooth" });
+
       setTimeout(() => {
         setSuccess("");
       }, 3000);
     } catch (error) {
       console.error("Error updating security settings:", error);
       setError("Error updating security settings");
-      
+
       // Scroll to top to make sure user sees the error
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      
+      window.scrollTo({ top: 0, behavior: "smooth" });
+
       setTimeout(() => {
         setError("");
       }, 3000);
     }
+  };
+
+  // Load events data from Firestore
+  useEffect(() => {
+    async function fetchEvents() {
+      try {
+        setEventsLoading(true);
+        const eventsCollection = collection(db, "events");
+        const eventSnapshot = await getDocs(eventsCollection);
+
+        const eventList = eventSnapshot.docs.map((doc) => {
+          const data = doc.data();
+
+          // Process createdAt
+          let createdAtDate = new Date();
+          if (typeof data.createdAt === "string") {
+            createdAtDate = new Date(data.createdAt);
+          } else if (
+            data.createdAt?.toDate &&
+            typeof data.createdAt.toDate === "function"
+          ) {
+            createdAtDate = data.createdAt.toDate();
+          }
+
+          // Return a properly typed event with fallbacks for undefined values
+          return {
+            id: doc.id,
+            title: data.title || "",
+            description: data.description || "",
+            location: data.location || "",
+            organizer: data.organizer || "",
+            partnership: data.partnership || "",
+            category: data.category || "Academic",
+            startDate: data.startDate || "",
+            endDate: data.endDate || "",
+            startTime: data.startTime || "",
+            endTime: data.endTime || "",
+            expectedParticipants: Number(data.expectedParticipants) || 0,
+            actualParticipants: Number(data.actualParticipants) || 0,
+            successRate: Number(data.successRate) || 0,
+            status: data.status || "Upcoming",
+            createdAt: createdAtDate,
+            createdBy: data.createdBy || "unknown",
+          };
+        });
+
+        setEvents(eventList);
+      } catch (err) {
+        console.error("Error fetching events:", err);
+        setError("Failed to load events. Please try again.");
+      } finally {
+        setEventsLoading(false);
+      }
+    }
+
+    if (activeSection === "events") {
+      fetchEvents();
+    }
+  }, [activeSection]);
+
+  // Reset event form
+  const resetEventForm = () => {
+    setEventTitle("");
+    setEventDescription("");
+    setEventLocation("");
+    setEventOrganizer("");
+    setEventPartnership("");
+    setEventCategory("Academic");
+    setEventStartDate("");
+    setEventEndDate("");
+    setEventStartTime("");
+    setEventEndTime("");
+    setEventExpectedParticipants(0);
+    setEventActualParticipants(0);
+    setEventSuccessRate(0);
+    setEventStatus("Upcoming");
+    setEditingEvent(null);
+    setIsAddingEvent(false);
+  };
+
+  // Handle edit event
+  const handleEditEvent = (event: any) => {
+    // Convert undefined values to defaults
+    setEventTitle(event.title || "");
+    setEventDescription(event.description || "");
+    setEventLocation(event.location || "");
+    setEventOrganizer(event.organizer || "");
+    setEventPartnership(event.partnership || "");
+    setEventCategory(event.category || "Academic");
+    setEventStartDate(event.startDate || "");
+    setEventEndDate(event.endDate || "");
+    setEventStartTime(event.startTime || "");
+    setEventEndTime(event.endTime || "");
+    setEventExpectedParticipants(
+      typeof event.expectedParticipants === "number"
+        ? event.expectedParticipants
+        : 0
+    );
+    setEventActualParticipants(
+      typeof event.actualParticipants === "number"
+        ? event.actualParticipants
+        : 0
+    );
+    setEventSuccessRate(
+      typeof event.successRate === "number" ? event.successRate : 0
+    );
+    setEventStatus(event.status || "Upcoming");
+    setEditingEvent(event.id);
+    setIsAddingEvent(true);
+  };
+
+  // Handle delete event
+  const handleDeleteEvent = async (eventId: string) => {
+    if (!confirm("Are you sure you want to delete this event?")) {
+      return;
+    }
+
+    try {
+      setEventsLoading(true);
+
+      // Delete from Firestore
+      const eventRef = doc(db, "events", eventId);
+      await deleteDoc(eventRef);
+
+      // Update UI
+      setEvents(events.filter((event) => event.id !== eventId));
+      setSuccess("Event deleted successfully!");
+    } catch (err) {
+      console.error("Error deleting event:", err);
+      setError("Failed to delete event. Please try again.");
+    } finally {
+      setEventsLoading(false);
+    }
+  };
+
+  // Handle form submit for event
+  const handleEventFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    // Show loading state
+    setEventsLoading(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      // Ensure all fields have non-undefined values and use proper types
+      const eventData = {
+        title: eventTitle || "",
+        description: eventDescription || "",
+        location: eventLocation || "",
+        organizer: eventOrganizer || "",
+        partnership: eventPartnership || "",
+        category: eventCategory || "Academic",
+        startDate: eventStartDate || "",
+        endDate: eventEndDate || "",
+        startTime: eventStartTime || "",
+        endTime: eventEndTime || "",
+        expectedParticipants: Number(eventExpectedParticipants) || 0,
+        actualParticipants: Number(eventActualParticipants) || 0,
+        successRate: Number(eventSuccessRate) || 0,
+        status: eventStatus || "Upcoming",
+      };
+
+      if (editingEvent) {
+        // Update existing event in Firestore
+        const eventRef = doc(db, "events", editingEvent);
+        await updateDoc(eventRef, eventData);
+
+        // Update UI
+        setEvents(
+          events.map((event) =>
+            event.id === editingEvent
+              ? {
+                  ...eventData,
+                  id: editingEvent,
+                  createdAt: event.createdAt,
+                  createdBy: event.createdBy,
+                }
+              : event
+          )
+        );
+
+        setSuccess("Event updated successfully!");
+      } else {
+        // Add new event to Firestore
+        const eventsCollection = collection(db, "events");
+        const docRef = await addDoc(eventsCollection, {
+          ...eventData,
+          createdAt: new Date(),
+          createdBy: userData?.uid || "unknown",
+        });
+
+        // Update UI
+        const newEvent = {
+          ...eventData,
+          id: docRef.id,
+          createdAt: new Date(),
+          createdBy: userData?.uid || "unknown",
+        };
+        setEvents([...events, newEvent]);
+
+        setSuccess("New event added successfully!");
+      }
+
+      // Reset form
+      resetEventForm();
+    } catch (err) {
+      console.error("Error saving event:", err);
+      setError("Failed to save event. Please try again.");
+    } finally {
+      setEventsLoading(false);
+    }
+  };
+
+  // Event Management Section
+  const renderEventsSection = () => {
+    // Event categories
+    const eventCategories = [
+      "Academic",
+      "Career Fair",
+      "Conference",
+      "Cultural",
+      "Exhibition",
+      "Fundraising",
+      "Guest Lecture",
+      "Orientation",
+      "Sports",
+      "Student Club",
+      "Webinar",
+      "Workshop",
+      "Other",
+    ];
+
+    // Event status options
+    const statusOptions = ["Upcoming", "Ongoing", "Completed", "Cancelled"];
+
+    // Calculate event statistics
+    const totalEvents = events.length;
+    const upcomingEvents = events.filter((e) => e.status === "Upcoming").length;
+    const ongoingEvents = events.filter((e) => e.status === "Ongoing").length;
+    const completedEvents = events.filter(
+      (e) => e.status === "Completed"
+    ).length;
+    const cancelledEvents = events.filter(
+      (e) => e.status === "Cancelled"
+    ).length;
+
+    // Category distribution
+    const categoryMap: Record<string, number> = {};
+    events.forEach((event) => {
+      if (!categoryMap[event.category]) {
+        categoryMap[event.category] = 0;
+      }
+      categoryMap[event.category]++;
+    });
+
+    // Participants and success metrics
+    const totalExpected = events.reduce(
+      (sum, event) => sum + (event.expectedParticipants || 0),
+      0
+    );
+    const totalActual = events.reduce(
+      (sum, event) => sum + (event.actualParticipants || 0),
+      0
+    );
+    const attendanceRate =
+      totalExpected > 0 ? Math.round((totalActual / totalExpected) * 100) : 0;
+
+    // Average success rate (only for completed events)
+    const completedEventsList = events.filter((e) => e.status === "Completed");
+    const avgSuccessRate =
+      completedEventsList.length > 0
+        ? Math.round(
+            completedEventsList.reduce(
+              (sum, e) => sum + (e.successRate || 0),
+              0
+            ) / completedEventsList.length
+          )
+        : 0;
+
+    return (
+      <div className="slide-in section-content">
+        <div className="section-title mb-4">
+          <i className="bi bi-calendar-event"></i>
+          Event Management
+        </div>
+
+        {/* Event Statistics Overview Panel */}
+        <div className="row g-4 mb-4">
+          <div className="col-12">
+            <div className="dashboard-card">
+              <h5 className="mb-3">Event Statistics Overview</h5>
+              <div className="row">
+                <div className="col-md-3 mb-3">
+                  <div className="p-3 rounded bg-primary bg-opacity-10">
+                    <h6 className="text-primary mb-1">Total Events</h6>
+                    <h2 className="mb-0">{totalEvents}</h2>
+                    <div className="small text-muted mt-2">
+                      <i className="bi bi-calendar-event me-1"></i>
+                      All events in system
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-3 mb-3">
+                  <div className="p-3 rounded bg-success bg-opacity-10">
+                    <h6 className="text-success mb-1">Attendance Rate</h6>
+                    <h2 className="mb-0">{attendanceRate}%</h2>
+                    <div className="small text-muted mt-2">
+                      <i className="bi bi-people me-1"></i>
+                      {totalActual} / {totalExpected} participants
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-3 mb-3">
+                  <div className="p-3 rounded bg-info bg-opacity-10">
+                    <h6 className="text-info mb-1">Average Success Rate</h6>
+                    <h2 className="mb-0">{avgSuccessRate}%</h2>
+                    <div className="small text-muted mt-2">
+                      <i className="bi bi-graph-up me-1"></i>
+                      Based on {completedEvents} completed events
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-3 mb-3">
+                  <div className="p-3 rounded bg-warning bg-opacity-10">
+                    <h6 className="text-warning mb-1">Upcoming Events</h6>
+                    <h2 className="mb-0">{upcomingEvents}</h2>
+                    <div className="small text-muted mt-2">
+                      <i className="bi bi-calendar-plus me-1"></i>
+                      {ongoingEvents} ongoing | {cancelledEvents} cancelled
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <hr className="my-4" />
+
+              <div className="row">
+                <div className="col-md-8 mb-3 mb-md-0">
+                  <h6 className="mb-3">Event Status Distribution</h6>
+                  <div className="progress" style={{ height: "25px" }}>
+                    {upcomingEvents > 0 && (
+                      <div
+                        className="progress-bar bg-primary"
+                        style={{
+                          width: `${(upcomingEvents / totalEvents) * 100}%`,
+                        }}
+                        title={`Upcoming: ${upcomingEvents}`}
+                      >
+                        Upcoming ({upcomingEvents})
+                      </div>
+                    )}
+                    {ongoingEvents > 0 && (
+                      <div
+                        className="progress-bar bg-success"
+                        style={{
+                          width: `${(ongoingEvents / totalEvents) * 100}%`,
+                        }}
+                        title={`Ongoing: ${ongoingEvents}`}
+                      >
+                        Ongoing ({ongoingEvents})
+                      </div>
+                    )}
+                    {completedEvents > 0 && (
+                      <div
+                        className="progress-bar bg-secondary"
+                        style={{
+                          width: `${(completedEvents / totalEvents) * 100}%`,
+                        }}
+                        title={`Completed: ${completedEvents}`}
+                      >
+                        Completed ({completedEvents})
+                      </div>
+                    )}
+                    {cancelledEvents > 0 && (
+                      <div
+                        className="progress-bar bg-danger"
+                        style={{
+                          width: `${(cancelledEvents / totalEvents) * 100}%`,
+                        }}
+                        title={`Cancelled: ${cancelledEvents}`}
+                      >
+                        Cancelled ({cancelledEvents})
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="col-md-4">
+                  <h6 className="mb-3">Top Event Categories</h6>
+                  <ul className="list-group">
+                    {Object.entries(categoryMap)
+                      .sort((a, b) => b[1] - a[1])
+                      .slice(0, 3)
+                      .map(([category, count], index) => (
+                        <li
+                          key={category}
+                          className="list-group-item d-flex justify-content-between align-items-center"
+                        >
+                          {category}
+                          <span className="badge bg-primary rounded-pill">
+                            {count}
+                          </span>
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="row mb-4">
+          <div className="col-12">
+            <div className="dashboard-card">
+              <div className="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                  <h5 className="mb-0">Campus Events</h5>
+                  <p className="text-muted mb-0">
+                    Manage all campus events and activities
+                  </p>
+                </div>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => setIsAddingEvent(true)}
+                >
+                  <i className="bi bi-plus-circle me-2"></i>
+                  Create New Event
+                </button>
+              </div>
+
+              {isAddingEvent && (
+                <div className="card mb-4">
+                  <div className="card-header d-flex justify-content-between align-items-center">
+                    <h5 className="mb-0">
+                      {editingEvent ? "Edit Event" : "Create New Event"}
+                    </h5>
+                    <button
+                      type="button"
+                      className="btn-close"
+                      onClick={resetEventForm}
+                    ></button>
+                  </div>
+                  <div className="card-body">
+                    <form onSubmit={handleEventFormSubmit}>
+                      <div className="row mb-3">
+                        <div className="col-md-6 mb-3 mb-md-0">
+                          <label className="form-label">Event Title *</label>
+                          <input
+                            type="text"
+                            className="form-control"
+                            value={eventTitle}
+                            onChange={(e) => setEventTitle(e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div className="col-md-6">
+                          <label className="form-label">Event Category *</label>
+                          <select
+                            className="form-select"
+                            value={eventCategory}
+                            onChange={(e) => setEventCategory(e.target.value)}
+                            required
+                          >
+                            {eventCategories.map((category) => (
+                              <option key={category} value={category}>
+                                {category}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="mb-3">
+                        <label className="form-label">Description</label>
+                        <textarea
+                          className="form-control"
+                          rows={3}
+                          value={eventDescription}
+                          onChange={(e) => setEventDescription(e.target.value)}
+                        ></textarea>
+                      </div>
+
+                      <div className="row mb-3">
+                        <div className="col-md-6 mb-3 mb-md-0">
+                          <label className="form-label">Location *</label>
+                          <input
+                            type="text"
+                            className="form-control"
+                            value={eventLocation}
+                            onChange={(e) => setEventLocation(e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div className="col-md-6">
+                          <label className="form-label">Organizer *</label>
+                          <input
+                            type="text"
+                            className="form-control"
+                            value={eventOrganizer}
+                            onChange={(e) => setEventOrganizer(e.target.value)}
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mb-3">
+                        <label className="form-label">
+                          Partnership (if any)
+                        </label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={eventPartnership}
+                          onChange={(e) => setEventPartnership(e.target.value)}
+                          placeholder="External partners, sponsors, collaborators"
+                        />
+                      </div>
+
+                      <div className="row mb-3">
+                        <div className="col-md-3 mb-3 mb-md-0">
+                          <label className="form-label">Start Date *</label>
+                          <input
+                            type="date"
+                            className="form-control"
+                            value={eventStartDate}
+                            onChange={(e) => setEventStartDate(e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div className="col-md-3 mb-3 mb-md-0">
+                          <label className="form-label">End Date *</label>
+                          <input
+                            type="date"
+                            className="form-control"
+                            value={eventEndDate}
+                            onChange={(e) => setEventEndDate(e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div className="col-md-3 mb-3 mb-md-0">
+                          <label className="form-label">Start Time *</label>
+                          <input
+                            type="time"
+                            className="form-control"
+                            value={eventStartTime}
+                            onChange={(e) => setEventStartTime(e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div className="col-md-3">
+                          <label className="form-label">End Time *</label>
+                          <input
+                            type="time"
+                            className="form-control"
+                            value={eventEndTime}
+                            onChange={(e) => setEventEndTime(e.target.value)}
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="row mb-3">
+                        <div className="col-md-4 mb-3 mb-md-0">
+                          <label className="form-label">
+                            Expected Participants
+                          </label>
+                          <input
+                            type="number"
+                            className="form-control"
+                            value={eventExpectedParticipants}
+                            onChange={(e) =>
+                              setEventExpectedParticipants(
+                                parseInt(e.target.value) || 0
+                              )
+                            }
+                            min="0"
+                          />
+                        </div>
+                        <div className="col-md-4 mb-3 mb-md-0">
+                          <label className="form-label">
+                            Actual Participants
+                          </label>
+                          <input
+                            type="number"
+                            className="form-control"
+                            value={eventActualParticipants}
+                            onChange={(e) =>
+                              setEventActualParticipants(
+                                parseInt(e.target.value) || 0
+                              )
+                            }
+                            min="0"
+                          />
+                          <small className="text-muted">
+                            Fill after event completion
+                          </small>
+                        </div>
+                        <div className="col-md-4">
+                          <label className="form-label">Status</label>
+                          <select
+                            className="form-select"
+                            value={eventStatus}
+                            onChange={(e) => setEventStatus(e.target.value)}
+                            required
+                          >
+                            {statusOptions.map((status) => (
+                              <option key={status} value={status}>
+                                {status}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="mb-4">
+                        <label className="form-label">
+                          Success Rate: {eventSuccessRate}%
+                        </label>
+                        <input
+                          type="range"
+                          className="form-range"
+                          min="0"
+                          max="100"
+                          step="5"
+                          value={eventSuccessRate}
+                          onChange={(e) =>
+                            setEventSuccessRate(parseInt(e.target.value))
+                          }
+                        />
+                        <small className="text-muted">
+                          Evaluate event success after completion
+                        </small>
+                      </div>
+
+                      <div className="d-flex justify-content-end gap-2">
+                        <button
+                          type="button"
+                          className="btn btn-outline-secondary"
+                          onClick={resetEventForm}
+                        >
+                          Cancel
+                        </button>
+                        <button type="submit" className="btn btn-primary">
+                          {editingEvent ? "Update Event" : "Create Event"}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+
+              {eventsLoading ? (
+                <div className="text-center py-5">
+                  <div className="spinner-border text-primary" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                  <p className="mt-2 text-muted">Loading events...</p>
+                </div>
+              ) : (
+                <>
+                  {events.length === 0 ? (
+                    <div className="alert alert-info text-center">
+                      <i className="bi bi-info-circle-fill me-2"></i>
+                      No events found. Click "Create New Event" to add one.
+                    </div>
+                  ) : (
+                    <div className="table-responsive">
+                      <table className="table table-hover">
+                        <thead className="table-light">
+                          <tr>
+                            <th>Event Title</th>
+                            <th>Category</th>
+                            <th>Location</th>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {events.map((event) => (
+                            <tr key={event.id}>
+                              <td>{event.title}</td>
+                              <td>
+                                <span className="badge bg-info bg-opacity-10 text-info">
+                                  {event.category}
+                                </span>
+                              </td>
+                              <td>{event.location}</td>
+                              <td>
+                                {event.startDate === event.endDate
+                                  ? new Date(
+                                      event.startDate
+                                    ).toLocaleDateString()
+                                  : `${new Date(
+                                      event.startDate
+                                    ).toLocaleDateString()} - ${new Date(
+                                      event.endDate
+                                    ).toLocaleDateString()}`}
+                              </td>
+                              <td>
+                                {event.startTime} - {event.endTime}
+                              </td>
+                              <td>
+                                <span
+                                  className={`badge ${
+                                    event.status === "Upcoming"
+                                      ? "bg-primary"
+                                      : event.status === "Ongoing"
+                                      ? "bg-success"
+                                      : event.status === "Completed"
+                                      ? "bg-secondary"
+                                      : "bg-danger"
+                                  }`}
+                                >
+                                  {event.status}
+                                </span>
+                              </td>
+                              <td>
+                                <div className="btn-group btn-group-sm">
+                                  <button
+                                    className="btn btn-outline-primary"
+                                    onClick={() => handleEditEvent(event)}
+                                  >
+                                    <i className="bi bi-pencil"></i>
+                                  </button>
+                                  <button
+                                    className="btn btn-outline-danger"
+                                    onClick={() => handleDeleteEvent(event.id)}
+                                  >
+                                    <i className="bi bi-trash"></i>
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -1662,6 +2471,15 @@ export default function AdminDashboard() {
           >
             <i className="bi bi-calendar3"></i>
             <span>Class Schedules</span>
+          </div>
+          <div
+            className={`admin-menu-item ${
+              activeSection === "events" ? "active" : ""
+            }`}
+            onClick={() => setActiveSection("events")}
+          >
+            <i className="bi bi-calendar-event"></i>
+            <span>Event Management</span>
           </div>
           <div
             className={`admin-menu-item ${
