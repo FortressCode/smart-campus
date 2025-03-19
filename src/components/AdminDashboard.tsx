@@ -8,6 +8,7 @@ import {
   updateDoc,
   addDoc,
   deleteDoc,
+  setDoc,
 } from "firebase/firestore";
 import { db } from "../firebase";
 
@@ -27,7 +28,7 @@ interface Schedule {
 }
 
 export default function AdminDashboard() {
-  const { userData, logout } = useAuth();
+  const { userData, logout, adminCreateUser } = useAuth();
   const navigate = useNavigate();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,6 +59,20 @@ export default function AdminDashboard() {
   const [scheduleDate, setScheduleDate] = useState("");
   const [dayOfWeek, setDayOfWeek] = useState("Monday");
   const [isRecurring, setIsRecurring] = useState(false);
+
+  // Add User Modal State
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [newUserName, setNewUserName] = useState("");
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
+  const [newUserRole, setNewUserRole] = useState("student");
+  const [isAddingUser, setIsAddingUser] = useState(false);
+  const [addUserError, setAddUserError] = useState("");
+  
+  // Delete User Modal State
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<any>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Logo URL for collapsed sidebar
   const logoUrl =
@@ -301,6 +316,32 @@ export default function AdminDashboard() {
         User Management
       </div>
 
+      {/* Success message */}
+      {success && (
+        <div className="alert alert-success alert-dismissible fade show" role="alert">
+          {success}
+          <button 
+            type="button" 
+            className="btn-close" 
+            onClick={() => setSuccess("")}
+            aria-label="Close"
+          ></button>
+        </div>
+      )}
+
+      {/* Error message */}
+      {error && (
+        <div className="alert alert-danger alert-dismissible fade show" role="alert">
+          {error}
+          <button 
+            type="button" 
+            className="btn-close" 
+            onClick={() => setError("")}
+            aria-label="Close"
+          ></button>
+        </div>
+      )}
+
       {/* User Management Section */}
       <div className="row">
         <div className="col-12">
@@ -308,7 +349,10 @@ export default function AdminDashboard() {
             <div className="d-flex justify-content-between align-items-center mb-4">
               <h5 className="mb-0">All Users</h5>
               <div>
-                <button className="btn btn-sm btn-primary">
+                <button 
+                  className="btn btn-sm btn-primary"
+                  onClick={() => setShowAddUserModal(true)}
+                >
                   <i className="bi bi-person-plus me-1"></i> Add New User
                 </button>
               </div>
@@ -395,7 +439,10 @@ export default function AdminDashboard() {
                               >
                                 <i className="bi bi-pencil me-1"></i> Edit
                               </button>
-                              <button className="btn btn-outline-danger">
+                              <button 
+                                className="btn btn-outline-danger"
+                                onClick={() => confirmDelete(user)}
+                              >
                                 <i className="bi bi-trash me-1"></i> Delete
                               </button>
                             </div>
@@ -410,6 +457,157 @@ export default function AdminDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Add User Modal */}
+      {showAddUserModal && (
+        <div className="modal d-block" tabIndex={-1} role="dialog" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog" role="document">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Add New User</h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => {
+                    setShowAddUserModal(false);
+                    setAddUserError("");
+                  }}
+                  aria-label="Close"
+                ></button>
+              </div>
+              <form onSubmit={handleAddUser}>
+                <div className="modal-body">
+                  {addUserError && (
+                    <div className="alert alert-danger" role="alert">
+                      {addUserError}
+                    </div>
+                  )}
+                  <div className="mb-3">
+                    <label htmlFor="newUserName" className="form-label">Name</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      id="newUserName"
+                      value={newUserName}
+                      onChange={(e) => setNewUserName(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label htmlFor="newUserEmail" className="form-label">Email</label>
+                    <input
+                      type="email"
+                      className="form-control"
+                      id="newUserEmail"
+                      value={newUserEmail}
+                      onChange={(e) => setNewUserEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label htmlFor="newUserPassword" className="form-label">Password</label>
+                    <input
+                      type="password"
+                      className="form-control"
+                      id="newUserPassword"
+                      value={newUserPassword}
+                      onChange={(e) => setNewUserPassword(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label htmlFor="newUserRole" className="form-label">Role</label>
+                    <select
+                      className="form-select"
+                      id="newUserRole"
+                      value={newUserRole}
+                      onChange={(e) => setNewUserRole(e.target.value)}
+                      required
+                    >
+                      <option value="student">Student</option>
+                      <option value="lecturer">Lecturer</option>
+                      <option value="admin">Administrator</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      setShowAddUserModal(false);
+                      setAddUserError("");
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={isAddingUser}
+                  >
+                    {isAddingUser ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        Adding...
+                      </>
+                    ) : (
+                      "Add User"
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete User Confirmation Modal */}
+      {showDeleteModal && userToDelete && (
+        <div className="modal d-block" tabIndex={-1} role="dialog" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog" role="document">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Confirm Delete</h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => setShowDeleteModal(false)}
+                  aria-label="Close"
+                ></button>
+              </div>
+              <div className="modal-body">
+                <p>Are you sure you want to delete the user: <strong>{userToDelete.name}</strong>?</p>
+                <p className="text-danger"><small>This action cannot be undone.</small></p>
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowDeleteModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={handleDeleteUser}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                      Deleting...
+                    </>
+                  ) : (
+                    "Delete User"
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -1223,6 +1421,103 @@ export default function AdminDashboard() {
 
     fetchSchedules();
   }, []);
+
+  // Add new user function
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validate inputs
+    if (!newUserName || !newUserEmail || !newUserPassword) {
+      setAddUserError("All fields are required");
+      return;
+    }
+    
+    try {
+      setIsAddingUser(true);
+      setAddUserError("");
+      
+      // Call adminCreateUser function from AuthContext
+      const result = await adminCreateUser(
+        newUserEmail, 
+        newUserPassword, 
+        newUserName, 
+        newUserRole
+      );
+      
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      
+      // Refresh user list
+      const usersCollection = collection(db, "users");
+      const userSnapshot = await getDocs(usersCollection);
+      const userList = userSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setUsers(userList);
+      
+      // Reset form and close modal
+      setNewUserName("");
+      setNewUserEmail("");
+      setNewUserPassword("");
+      setNewUserRole("student");
+      setShowAddUserModal(false);
+      
+      // Show success message
+      setSuccess(`User ${newUserName} added successfully`);
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setSuccess("");
+      }, 3000);
+    } catch (err: any) {
+      setAddUserError(err.message || "Failed to add user");
+      console.error(err);
+    } finally {
+      setIsAddingUser(false);
+    }
+  };
+
+  // Handle delete user
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+    
+    try {
+      setIsDeleting(true);
+      setError("");
+      
+      // Delete user from Firestore
+      const userDocRef = doc(db, "users", userToDelete.id);
+      await deleteDoc(userDocRef);
+      
+      // Update the users state by filtering out the deleted user
+      setUsers(users.filter(user => user.id !== userToDelete.id));
+      
+      // Show success message
+      setSuccess(`User ${userToDelete.name} deleted successfully`);
+      
+      // Reset state and close modal
+      setUserToDelete(null);
+      setShowDeleteModal(false);
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setSuccess("");
+      }, 3000);
+    } catch (err) {
+      setError("Failed to delete user");
+      console.error(err);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+  
+  // Open delete confirmation modal
+  const confirmDelete = (user: any) => {
+    setUserToDelete(user);
+    setShowDeleteModal(true);
+  };
 
   return (
     <div className="admin-layout">
