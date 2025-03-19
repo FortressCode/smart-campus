@@ -41,6 +41,12 @@ interface AuthContextProps {
     name: string,
     role: string
   ) => Promise<UserCredential>;
+  adminCreateUser: (
+    email: string,
+    password: string,
+    name: string,
+    role: string
+  ) => Promise<{ success: boolean; error?: string; uid?: string }>;
   login: (email: string, password: string) => Promise<UserCredential>;
   logout: () => Promise<void>;
   loading: boolean;
@@ -99,6 +105,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     return userCredential;
+  }
+  
+  // Function for admins to create users without affecting their current session
+  async function adminCreateUser(
+    email: string,
+    password: string,
+    name: string,
+    role: string
+  ) {
+    try {
+      // Create the user in Firebase Auth using a separate connection
+      const response = await fetch('https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=AIzaSyABNDrseHZo8Lgt-uwAfzMRZNwQefCHQwY', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          returnSecureToken: true,
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error?.message || 'Failed to create user');
+      }
+      
+      const uid = data.localId;
+      
+      // Now create user document in Firestore
+      await setDoc(doc(db, "users", uid), {
+        name,
+        email,
+        role,
+        emailVerified: false,
+        createdAt: serverTimestamp(),
+        createdBy: currentUser?.uid || 'system',
+      });
+      
+      return { success: true, uid };
+    } catch (error: any) {
+      console.error("Error creating user:", error);
+      return { 
+        success: false, 
+        error: error.message || 'Failed to create user'
+      };
+    }
   }
 
   function login(email: string, password: string) {
@@ -267,6 +322,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     currentUser,
     userData,
     signup,
+    adminCreateUser,
     login,
     logout,
     loading,
