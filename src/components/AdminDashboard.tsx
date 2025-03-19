@@ -9,6 +9,9 @@ import {
   addDoc,
   deleteDoc,
   setDoc,
+  query,
+  where,
+  onSnapshot,
 } from "firebase/firestore";
 import { db } from "../firebase";
 
@@ -28,7 +31,13 @@ interface Schedule {
 }
 
 export default function AdminDashboard() {
-  const { userData, logout, adminCreateUser } = useAuth();
+  const {
+    userData,
+    logout,
+    adminCreateUser,
+    updateSecuritySettings,
+    getSessionTimeout,
+  } = useAuth();
   const navigate = useNavigate();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,6 +87,11 @@ export default function AdminDashboard() {
   const logoUrl =
     "https://png.pngtree.com/png-vector/20220922/ourmid/pngtree-letter-v-icon-png-image_6210719.png";
 
+  // Add security settings state
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(true);
+  const [strongPasswordEnabled, setStrongPasswordEnabled] = useState(true);
+  const [sessionTimeout, setSessionTimeout] = useState(30);
+
   // Fetch all users when component mounts
   useEffect(() => {
     async function fetchUsers() {
@@ -100,6 +114,34 @@ export default function AdminDashboard() {
 
     fetchUsers();
   }, []);
+
+  // Load existing security settings on component mount
+  useEffect(() => {
+    async function loadSecuritySettings() {
+      try {
+        // Get session timeout from AuthContext
+        const timeout = await getSessionTimeout();
+        setSessionTimeout(timeout);
+        
+        // Get other security settings from Firestore
+        const securitySettingsRef = doc(db, "settings", "security");
+        const unsubscribe = onSnapshot(securitySettingsRef, (doc) => {
+          if (doc.exists()) {
+            const data = doc.data();
+            setTwoFactorEnabled(data.enableTwoFactor !== false);
+            setStrongPasswordEnabled(data.enforceStrongPassword !== false);
+            setSessionTimeout(data.sessionTimeoutMinutes || 30);
+          }
+        });
+        
+        return unsubscribe;
+      } catch (error) {
+        console.error("Error loading security settings:", error);
+      }
+    }
+    
+    loadSecuritySettings();
+  }, [getSessionTimeout]);
 
   // Handle role change
   const handleRoleChange = async (userId: string, role: string) => {
@@ -821,7 +863,8 @@ export default function AdminDashboard() {
               className="form-check-input"
               type="checkbox"
               id="twoFactorAuth"
-              defaultChecked
+              checked={twoFactorEnabled}
+              onChange={(e) => setTwoFactorEnabled(e.target.checked)}
             />
             <label className="form-check-label" htmlFor="twoFactorAuth">
               Enable Two-Factor Authentication
@@ -834,7 +877,8 @@ export default function AdminDashboard() {
               className="form-check-input"
               type="checkbox"
               id="passwordPolicy"
-              defaultChecked
+              checked={strongPasswordEnabled}
+              onChange={(e) => setStrongPasswordEnabled(e.target.checked)}
             />
             <label className="form-check-label" htmlFor="passwordPolicy">
               Enforce Strong Password Policy
@@ -843,9 +887,28 @@ export default function AdminDashboard() {
         </div>
         <div className="mb-3">
           <label className="form-label">Session Timeout (minutes)</label>
-          <input type="number" className="form-control" defaultValue="30" />
+          <input
+            type="number"
+            className="form-control"
+            value={sessionTimeout}
+            onChange={(e) => {
+              const value = parseInt(e.target.value);
+              // Ensure timeout is at least 1 minute
+              setSessionTimeout(value < 1 ? 1 : value);
+            }}
+            min="1"
+            max="480"
+          />
+          <small className="text-muted">
+            User will be automatically logged out after this period of inactivity (minimum 1 minute).
+          </small>
         </div>
-        <button className="btn btn-primary">Update Security Settings</button>
+        <button 
+          className="btn btn-primary"
+          onClick={handleUpdateSecuritySettings}
+        >
+          Update Security Settings
+        </button>
       </div>
     </div>
   );
@@ -1517,6 +1580,37 @@ export default function AdminDashboard() {
   const confirmDelete = (user: any) => {
     setUserToDelete(user);
     setShowDeleteModal(true);
+  };
+
+  // Handler for updating security settings
+  const handleUpdateSecuritySettings = async () => {
+    try {
+      await updateSecuritySettings(
+        twoFactorEnabled,
+        strongPasswordEnabled,
+        sessionTimeout
+      );
+      
+      // Show success message
+      setSuccess("Security settings updated successfully");
+      
+      // Scroll to top to make sure user sees the message
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      
+      setTimeout(() => {
+        setSuccess("");
+      }, 3000);
+    } catch (error) {
+      console.error("Error updating security settings:", error);
+      setError("Error updating security settings");
+      
+      // Scroll to top to make sure user sees the error
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      
+      setTimeout(() => {
+        setError("");
+      }, 3000);
+    }
   };
 
   return (
