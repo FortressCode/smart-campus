@@ -2,8 +2,31 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import NavBar from "./NavBar";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  updateDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
 import { db } from "../firebase";
+
+// Define Schedule interface
+interface Schedule {
+  id: string;
+  moduleTitle: string;
+  floorNumber: string;
+  classroomNumber: string;
+  lecturerName: string;
+  branch: string;
+  startTime: string;
+  endTime: string;
+  date: string;
+  dayOfWeek: string;
+  isRecurring: boolean;
+}
 
 export default function LecturerDashboard() {
   const { userData, logout, currentUser } = useAuth();
@@ -21,6 +44,10 @@ export default function LecturerDashboard() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  // Schedule state
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [schedulesLoading, setSchedulesLoading] = useState(true);
 
   // Profile management state
   const [name, setName] = useState("");
@@ -83,6 +110,81 @@ export default function LecturerDashboard() {
       setProfileImage(userData.profileImage || "");
     }
   }, [activeSection, userData]);
+
+  // Load lecturer's schedules
+  useEffect(() => {
+    async function fetchLecturerSchedules() {
+      if (!userData) {
+        console.log("No user data found");
+        return;
+      }
+
+      console.log("Fetching schedules for lecturer:", userData.name);
+
+      try {
+        setSchedulesLoading(true);
+        const schedulesCollection = collection(db, "schedules");
+
+        // Log all schedules first to see what's in the collection
+        const allSchedulesSnapshot = await getDocs(schedulesCollection);
+        const allSchedules = allSchedulesSnapshot.docs.map(
+          (doc) =>
+            ({
+              id: doc.id,
+              ...doc.data(),
+            } as Schedule)
+        );
+        console.log("All schedules in collection (with lecturer names):");
+        allSchedules.forEach((schedule) => {
+          console.log(`- Schedule ID: ${schedule.id}`);
+          console.log(`  Module: ${schedule.moduleTitle}`);
+          console.log(`  Lecturer: "${schedule.lecturerName}"`);
+          console.log(`  Branch: ${schedule.branch}`);
+          console.log("---");
+        });
+
+        // Filter schedules by lecturer name
+        const q = query(
+          schedulesCollection,
+          where("lecturerName", "==", userData.name)
+        );
+
+        console.log(
+          "Executing Firestore query for lecturer name:",
+          userData.name
+        );
+        const scheduleSnapshot = await getDocs(q);
+        console.log("Query results:", scheduleSnapshot.size, "documents found");
+
+        if (scheduleSnapshot.empty) {
+          console.log("No schedules found for this lecturer name");
+          console.log("Current user's name:", userData.name);
+          console.log("Available lecturer names in schedules:");
+          allSchedules.forEach((schedule) => {
+            console.log(`- ${schedule.lecturerName}`);
+          });
+        }
+
+        const scheduleList: Schedule[] = scheduleSnapshot.docs.map(
+          (doc) =>
+            ({
+              id: doc.id,
+              ...doc.data(),
+            } as Schedule)
+        );
+
+        console.log("Processed schedules:", scheduleList);
+        setSchedules(scheduleList);
+      } catch (err) {
+        console.error("Error fetching schedules:", err);
+        setError("Failed to load schedules. Please try again.");
+      } finally {
+        setSchedulesLoading(false);
+      }
+    }
+
+    fetchLecturerSchedules();
+  }, [userData]);
 
   // Update profile function
   const handleUpdateProfile = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -906,87 +1008,69 @@ export default function LecturerDashboard() {
           <div className="dashboard-card">
             <div className="d-flex justify-content-between align-items-center mb-4">
               <h5 className="mb-0">Current Classes</h5>
-              <button className="btn btn-sm btn-primary">
-                <i className="bi bi-plus-lg me-1"></i> New Class
-              </button>
             </div>
 
-            <div className="table-responsive">
-              <table className="table table-hover">
-                <thead className="table-light">
-                  <tr>
-                    <th>Course Code</th>
-                    <th>Course Name</th>
-                    <th>Schedule</th>
-                    <th>Students</th>
-                    <th>Room</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>CS101</td>
-                    <td>Introduction to Computer Science</td>
-                    <td>Mon/Wed 9:00-10:30 AM</td>
-                    <td>45</td>
-                    <td>Room 302</td>
-                    <td>
-                      <div className="btn-group btn-group-sm">
-                        <button className="btn btn-outline-primary">
-                          <i className="bi bi-eye"></i>
-                        </button>
-                        <button className="btn btn-outline-success">
-                          <i className="bi bi-file-earmark-text"></i>
-                        </button>
-                        <button className="btn btn-outline-secondary">
-                          <i className="bi bi-people"></i>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>CS202</td>
-                    <td>Data Structures and Algorithms</td>
-                    <td>Tue/Thu 1:00-2:30 PM</td>
-                    <td>32</td>
-                    <td>Room 201</td>
-                    <td>
-                      <div className="btn-group btn-group-sm">
-                        <button className="btn btn-outline-primary">
-                          <i className="bi bi-eye"></i>
-                        </button>
-                        <button className="btn btn-outline-success">
-                          <i className="bi bi-file-earmark-text"></i>
-                        </button>
-                        <button className="btn btn-outline-secondary">
-                          <i className="bi bi-people"></i>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>CS405</td>
-                    <td>Project Supervision</td>
-                    <td>Fri 3:30-5:00 PM</td>
-                    <td>12</td>
-                    <td>Lab 105</td>
-                    <td>
-                      <div className="btn-group btn-group-sm">
-                        <button className="btn btn-outline-primary">
-                          <i className="bi bi-eye"></i>
-                        </button>
-                        <button className="btn btn-outline-success">
-                          <i className="bi bi-file-earmark-text"></i>
-                        </button>
-                        <button className="btn btn-outline-secondary">
-                          <i className="bi bi-people"></i>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            {schedulesLoading ? (
+              <div className="text-center py-5">
+                <div className="spinner-border text-primary" role="status">
+                  <span className="visually-hidden">Loading...</span>
+                </div>
+                <p className="mt-2 text-muted">Loading schedules...</p>
+              </div>
+            ) : schedules.length === 0 ? (
+              <div className="text-center py-5">
+                <i className="bi bi-calendar-x fs-1 text-muted"></i>
+                <p className="mt-3 text-muted">
+                  No classes scheduled at the moment.
+                </p>
+              </div>
+            ) : (
+              <div className="table-responsive">
+                <table className="table table-hover">
+                  <thead className="table-light">
+                    <tr>
+                      <th>Module Title</th>
+                      <th>Schedule</th>
+                      <th>Room</th>
+                      <th>Branch</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {schedules.map((schedule) => (
+                      <tr key={schedule.id}>
+                        <td>{schedule.moduleTitle}</td>
+                        <td>
+                          {schedule.isRecurring ? (
+                            <span>
+                              Every {schedule.dayOfWeek}, {schedule.startTime} -{" "}
+                              {schedule.endTime}
+                            </span>
+                          ) : (
+                            <span>
+                              {new Date(schedule.date).toLocaleDateString()},{" "}
+                              {schedule.startTime} - {schedule.endTime}
+                            </span>
+                          )}
+                        </td>
+                        <td>
+                          Floor {schedule.floorNumber}, Room{" "}
+                          {schedule.classroomNumber}
+                        </td>
+                        <td>{schedule.branch}</td>
+                        <td>
+                          {schedule.isRecurring ? (
+                            <span className="badge bg-success">Recurring</span>
+                          ) : (
+                            <span className="badge bg-primary">One-time</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       </div>
