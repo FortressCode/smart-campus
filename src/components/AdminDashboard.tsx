@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { useNotification } from "../contexts/NotificationContext";
 import {
   collection,
   getDocs,
   doc,
   updateDoc,
-  addDoc,
+  getDoc,
   deleteDoc,
   setDoc,
+  addDoc,
+  serverTimestamp,
   query,
   where,
   onSnapshot,
@@ -38,6 +41,7 @@ export default function AdminDashboard() {
     updateSecuritySettings,
     getSessionTimeout,
   } = useAuth();
+  const { showNotification } = useNotification();
   const navigate = useNavigate();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -114,28 +118,25 @@ export default function AdminDashboard() {
   const [eventSuccessRate, setEventSuccessRate] = useState(0);
   const [eventStatus, setEventStatus] = useState("Upcoming");
 
-  // Fetch all users when component mounts
-  useEffect(() => {
-    async function fetchUsers() {
-      try {
-        setLoading(true);
-        const usersCollection = collection(db, "users");
-        const userSnapshot = await getDocs(usersCollection);
-        const userList = userSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setUsers(userList);
-      } catch (err) {
-        setError("Failed to fetch users");
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
+  // Function to fetch users from Firestore
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const usersCollection = collection(db, "users");
+      const userSnapshot = await getDocs(usersCollection);
+      const userList = userSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setUsers(userList);
+      setError("");
+    } catch (err) {
+      console.error("Error fetching users:", err);
+      setError("Failed to load users. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    fetchUsers();
-  }, []);
+  };
 
   // Load existing security settings on component mount
   useEffect(() => {
@@ -180,11 +181,13 @@ export default function AdminDashboard() {
         users.map((user) => (user.id === userId ? { ...user, role } : user))
       );
 
-      setSuccess(`User role updated successfully to ${role}`);
+      showNotification(`User role updated successfully to ${role}`);
+
+      // Reset editing state after successful update
       setEditingUser(null);
     } catch (err) {
-      setError("Failed to update user role");
-      console.error(err);
+      console.error("Error updating user role:", err);
+      showNotification("Failed to update user role");
     }
   };
 
@@ -690,7 +693,7 @@ export default function AdminDashboard() {
                 <button
                   type="button"
                   className="btn btn-danger"
-                  onClick={handleDeleteUser}
+                  onClick={handleDeleteUserConfirm}
                   disabled={isDeleting}
                 >
                   {isDeleting ? (
@@ -736,23 +739,6 @@ export default function AdminDashboard() {
             </p>
             <button className="btn btn-sm btn-outline-primary">
               Manage Courses
-            </button>
-          </div>
-        </div>
-
-        <div className="col-md-6">
-          <div className="dashboard-card">
-            <div className="d-flex align-items-center justify-content-between mb-3">
-              <h5 className="mb-0">Schedules</h5>
-              <div className="bg-success bg-opacity-10 rounded-circle p-2">
-                <i className="bi bi-calendar-week fs-4 text-success"></i>
-              </div>
-            </div>
-            <p className="text-muted mb-3">
-              Organize timetables and academic calendars.
-            </p>
-            <button className="btn btn-sm btn-outline-success">
-              View Calendar
             </button>
           </div>
         </div>
@@ -1441,10 +1427,10 @@ export default function AdminDashboard() {
 
       // Update UI
       setSchedules(schedules.filter((schedule) => schedule.id !== scheduleId));
-      setSuccess("Schedule deleted successfully!");
+      showNotification("Schedule deleted successfully!");
     } catch (err) {
       console.error("Error deleting schedule:", err);
-      setError("Failed to delete schedule. Please try again.");
+      showNotification("Failed to delete schedule. Please try again.");
     } finally {
       setSchedulesLoading(false);
     }
@@ -1489,7 +1475,7 @@ export default function AdminDashboard() {
           )
         );
 
-        setSuccess("Schedule updated successfully!");
+        showNotification("Schedule updated successfully!");
       } else {
         // Add new schedule to Firestore
         const schedulesCollection = collection(db, "schedules");
@@ -1506,14 +1492,14 @@ export default function AdminDashboard() {
         };
         setSchedules([...schedules, newSchedule]);
 
-        setSuccess("New schedule added successfully!");
+        showNotification("New schedule added successfully!");
       }
 
       // Reset form
       resetScheduleForm();
     } catch (err) {
       console.error("Error saving schedule:", err);
-      setError("Failed to save schedule. Please try again.");
+      showNotification("Failed to save schedule. Please try again.");
     } finally {
       setSchedulesLoading(false);
     }
@@ -1547,7 +1533,7 @@ export default function AdminDashboard() {
     fetchSchedules();
   }, []);
 
-  // Add new user function
+  // Handle adding a new user from admin dashboard
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -1591,6 +1577,7 @@ export default function AdminDashboard() {
 
       // Show success message
       setSuccess(`User ${newUserName} added successfully`);
+      showNotification(`User ${newUserName} added successfully`);
 
       // Clear success message after 3 seconds
       setTimeout(() => {
@@ -1604,44 +1591,36 @@ export default function AdminDashboard() {
     }
   };
 
-  // Handle delete user
-  const handleDeleteUser = async () => {
-    if (!userToDelete) return;
-
-    try {
-      setIsDeleting(true);
-      setError("");
-
-      // Delete user from Firestore
-      const userDocRef = doc(db, "users", userToDelete.id);
-      await deleteDoc(userDocRef);
-
-      // Update the users state by filtering out the deleted user
-      setUsers(users.filter((user) => user.id !== userToDelete.id));
-
-      // Show success message
-      setSuccess(`User ${userToDelete.name} deleted successfully`);
-
-      // Reset state and close modal
-      setUserToDelete(null);
-      setShowDeleteModal(false);
-
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        setSuccess("");
-      }, 3000);
-    } catch (err) {
-      setError("Failed to delete user");
-      console.error(err);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
   // Open delete confirmation modal
   const confirmDelete = (user: any) => {
     setUserToDelete(user);
     setShowDeleteModal(true);
+  };
+
+  // Handle user deletion
+  const handleDeleteUserConfirm = async () => {
+    if (!userToDelete) return;
+
+    setIsDeleting(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      // Delete user from Firestore
+      await deleteDoc(doc(db, "users", userToDelete.id));
+
+      // Update UI
+      setUsers(users.filter((user) => user.id !== userToDelete.id));
+      setShowDeleteModal(false);
+      setUserToDelete(null);
+
+      showNotification("User deleted successfully");
+    } catch (err) {
+      console.error("Error deleting user:", err);
+      showNotification("Failed to delete user");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   // Handler for updating security settings
@@ -1653,237 +1632,17 @@ export default function AdminDashboard() {
         sessionTimeout
       );
 
-      // Show success message
-      setSuccess("Security settings updated successfully");
+      // Only use notification, not both
+      showNotification("Security settings updated successfully");
 
       // Scroll to top to make sure user sees the message
       window.scrollTo({ top: 0, behavior: "smooth" });
-
-      setTimeout(() => {
-        setSuccess("");
-      }, 3000);
     } catch (error) {
       console.error("Error updating security settings:", error);
-      setError("Error updating security settings");
+      showNotification("Error updating security settings");
 
       // Scroll to top to make sure user sees the error
       window.scrollTo({ top: 0, behavior: "smooth" });
-
-      setTimeout(() => {
-        setError("");
-      }, 3000);
-    }
-  };
-
-  // Load events data from Firestore
-  useEffect(() => {
-    async function fetchEvents() {
-      try {
-        setEventsLoading(true);
-        const eventsCollection = collection(db, "events");
-        const eventSnapshot = await getDocs(eventsCollection);
-
-        const eventList = eventSnapshot.docs.map((doc) => {
-          const data = doc.data();
-
-          // Process createdAt
-          let createdAtDate = new Date();
-          if (typeof data.createdAt === "string") {
-            createdAtDate = new Date(data.createdAt);
-          } else if (
-            data.createdAt?.toDate &&
-            typeof data.createdAt.toDate === "function"
-          ) {
-            createdAtDate = data.createdAt.toDate();
-          }
-
-          // Return a properly typed event with fallbacks for undefined values
-          return {
-            id: doc.id,
-            title: data.title || "",
-            description: data.description || "",
-            location: data.location || "",
-            organizer: data.organizer || "",
-            partnership: data.partnership || "",
-            category: data.category || "Academic",
-            startDate: data.startDate || "",
-            endDate: data.endDate || "",
-            startTime: data.startTime || "",
-            endTime: data.endTime || "",
-            expectedParticipants: Number(data.expectedParticipants) || 0,
-            actualParticipants: Number(data.actualParticipants) || 0,
-            successRate: Number(data.successRate) || 0,
-            status: data.status || "Upcoming",
-            createdAt: createdAtDate,
-            createdBy: data.createdBy || "unknown",
-          };
-        });
-
-        setEvents(eventList);
-      } catch (err) {
-        console.error("Error fetching events:", err);
-        setError("Failed to load events. Please try again.");
-      } finally {
-        setEventsLoading(false);
-      }
-    }
-
-    if (activeSection === "events") {
-      fetchEvents();
-    }
-  }, [activeSection]);
-
-  // Reset event form
-  const resetEventForm = () => {
-    setEventTitle("");
-    setEventDescription("");
-    setEventLocation("");
-    setEventOrganizer("");
-    setEventPartnership("");
-    setEventCategory("Academic");
-    setEventStartDate("");
-    setEventEndDate("");
-    setEventStartTime("");
-    setEventEndTime("");
-    setEventExpectedParticipants(0);
-    setEventActualParticipants(0);
-    setEventSuccessRate(0);
-    setEventStatus("Upcoming");
-    setEditingEvent(null);
-    setIsAddingEvent(false);
-  };
-
-  // Handle edit event
-  const handleEditEvent = (event: any) => {
-    // Convert undefined values to defaults
-    setEventTitle(event.title || "");
-    setEventDescription(event.description || "");
-    setEventLocation(event.location || "");
-    setEventOrganizer(event.organizer || "");
-    setEventPartnership(event.partnership || "");
-    setEventCategory(event.category || "Academic");
-    setEventStartDate(event.startDate || "");
-    setEventEndDate(event.endDate || "");
-    setEventStartTime(event.startTime || "");
-    setEventEndTime(event.endTime || "");
-    setEventExpectedParticipants(
-      typeof event.expectedParticipants === "number"
-        ? event.expectedParticipants
-        : 0
-    );
-    setEventActualParticipants(
-      typeof event.actualParticipants === "number"
-        ? event.actualParticipants
-        : 0
-    );
-    setEventSuccessRate(
-      typeof event.successRate === "number" ? event.successRate : 0
-    );
-    setEventStatus(event.status || "Upcoming");
-    setEditingEvent(event.id);
-    setIsAddingEvent(true);
-  };
-
-  // Handle delete event
-  const handleDeleteEvent = async (eventId: string) => {
-    if (!confirm("Are you sure you want to delete this event?")) {
-      return;
-    }
-
-    try {
-      setEventsLoading(true);
-
-      // Delete from Firestore
-      const eventRef = doc(db, "events", eventId);
-      await deleteDoc(eventRef);
-
-      // Update UI
-      setEvents(events.filter((event) => event.id !== eventId));
-      setSuccess("Event deleted successfully!");
-    } catch (err) {
-      console.error("Error deleting event:", err);
-      setError("Failed to delete event. Please try again.");
-    } finally {
-      setEventsLoading(false);
-    }
-  };
-
-  // Handle form submit for event
-  const handleEventFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
-    // Show loading state
-    setEventsLoading(true);
-    setError("");
-    setSuccess("");
-
-    try {
-      // Ensure all fields have non-undefined values and use proper types
-      const eventData = {
-        title: eventTitle || "",
-        description: eventDescription || "",
-        location: eventLocation || "",
-        organizer: eventOrganizer || "",
-        partnership: eventPartnership || "",
-        category: eventCategory || "Academic",
-        startDate: eventStartDate || "",
-        endDate: eventEndDate || "",
-        startTime: eventStartTime || "",
-        endTime: eventEndTime || "",
-        expectedParticipants: Number(eventExpectedParticipants) || 0,
-        actualParticipants: Number(eventActualParticipants) || 0,
-        successRate: Number(eventSuccessRate) || 0,
-        status: eventStatus || "Upcoming",
-      };
-
-      if (editingEvent) {
-        // Update existing event in Firestore
-        const eventRef = doc(db, "events", editingEvent);
-        await updateDoc(eventRef, eventData);
-
-        // Update UI
-        setEvents(
-          events.map((event) =>
-            event.id === editingEvent
-              ? {
-                  ...eventData,
-                  id: editingEvent,
-                  createdAt: event.createdAt,
-                  createdBy: event.createdBy,
-                }
-              : event
-          )
-        );
-
-        setSuccess("Event updated successfully!");
-      } else {
-        // Add new event to Firestore
-        const eventsCollection = collection(db, "events");
-        const docRef = await addDoc(eventsCollection, {
-          ...eventData,
-          createdAt: new Date(),
-          createdBy: userData?.uid || "unknown",
-        });
-
-        // Update UI
-        const newEvent = {
-          ...eventData,
-          id: docRef.id,
-          createdAt: new Date(),
-          createdBy: userData?.uid || "unknown",
-        };
-        setEvents([...events, newEvent]);
-
-        setSuccess("New event added successfully!");
-      }
-
-      // Reset form
-      resetEventForm();
-    } catch (err) {
-      console.error("Error saving event:", err);
-      setError("Failed to save event. Please try again.");
-    } finally {
-      setEventsLoading(false);
     }
   };
 
@@ -1910,48 +1669,50 @@ export default function AdminDashboard() {
     const statusOptions = ["Upcoming", "Ongoing", "Completed", "Cancelled"];
 
     // Calculate event statistics
-    const totalEvents = events.length;
-    const upcomingEvents = events.filter((e) => e.status === "Upcoming").length;
-    const ongoingEvents = events.filter((e) => e.status === "Ongoing").length;
-    const completedEvents = events.filter(
-      (e) => e.status === "Completed"
-    ).length;
-    const cancelledEvents = events.filter(
-      (e) => e.status === "Cancelled"
-    ).length;
+    const eventStats = {
+      total: events.length,
+      byStatus: {
+        upcoming: events.filter((e) => e.status === "Upcoming").length,
+        ongoing: events.filter((e) => e.status === "Ongoing").length,
+        completed: events.filter((e) => e.status === "Completed").length,
+        cancelled: events.filter((e) => e.status === "Cancelled").length,
+      },
+      byCategory: {} as Record<string, number>,
+      participationRate: 0,
+      upcomingCount: 0,
+    };
 
-    // Category distribution
-    const categoryMap: Record<string, number> = {};
+    // Calculate events by category
     events.forEach((event) => {
-      if (!categoryMap[event.category]) {
-        categoryMap[event.category] = 0;
-      }
-      categoryMap[event.category]++;
+      const category = event.category || "Other";
+      eventStats.byCategory[category] =
+        (eventStats.byCategory[category] || 0) + 1;
     });
 
-    // Participants and success metrics
-    const totalExpected = events.reduce(
-      (sum, event) => sum + (event.expectedParticipants || 0),
-      0
-    );
-    const totalActual = events.reduce(
-      (sum, event) => sum + (event.actualParticipants || 0),
-      0
-    );
-    const attendanceRate =
-      totalExpected > 0 ? Math.round((totalActual / totalExpected) * 100) : 0;
+    // Calculate average participation rate
+    const completedEvents = events.filter((e) => e.status === "Completed");
+    if (completedEvents.length > 0) {
+      const totalExpected = completedEvents.reduce(
+        (sum, event) => sum + (event.expectedParticipants || 0),
+        0
+      );
+      const totalActual = completedEvents.reduce(
+        (sum, event) => sum + (event.actualParticipants || 0),
+        0
+      );
+      eventStats.participationRate =
+        totalExpected > 0 ? (totalActual / totalExpected) * 100 : 0;
+    }
 
-    // Average success rate (only for completed events)
-    const completedEventsList = events.filter((e) => e.status === "Completed");
-    const avgSuccessRate =
-      completedEventsList.length > 0
-        ? Math.round(
-            completedEventsList.reduce(
-              (sum, e) => sum + (e.successRate || 0),
-              0
-            ) / completedEventsList.length
-          )
-        : 0;
+    // Get upcoming events count
+    eventStats.upcomingCount = events.filter(
+      (e) => e.status === "Upcoming" && new Date(e.startDate) > new Date()
+    ).length;
+
+    // Get top 5 categories by event count
+    const topCategories = Object.entries(eventStats.byCategory)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
 
     return (
       <div className="slide-in section-content">
@@ -1960,132 +1721,211 @@ export default function AdminDashboard() {
           Event Management
         </div>
 
-        {/* Event Statistics Overview Panel */}
-        <div className="row g-4 mb-4">
-          <div className="col-12">
-            <div className="dashboard-card">
-              <h5 className="mb-3">Event Statistics Overview</h5>
-              <div className="row">
-                <div className="col-md-3 mb-3">
-                  <div className="p-3 rounded bg-primary bg-opacity-10">
-                    <h6 className="text-primary mb-1">Total Events</h6>
-                    <h2 className="mb-0">{totalEvents}</h2>
-                    <div className="small text-muted mt-2">
-                      <i className="bi bi-calendar-event me-1"></i>
-                      All events in system
-                    </div>
-                  </div>
-                </div>
-                <div className="col-md-3 mb-3">
-                  <div className="p-3 rounded bg-success bg-opacity-10">
-                    <h6 className="text-success mb-1">Attendance Rate</h6>
-                    <h2 className="mb-0">{attendanceRate}%</h2>
-                    <div className="small text-muted mt-2">
-                      <i className="bi bi-people me-1"></i>
-                      {totalActual} / {totalExpected} participants
-                    </div>
-                  </div>
-                </div>
-                <div className="col-md-3 mb-3">
-                  <div className="p-3 rounded bg-info bg-opacity-10">
-                    <h6 className="text-info mb-1">Average Success Rate</h6>
-                    <h2 className="mb-0">{avgSuccessRate}%</h2>
-                    <div className="small text-muted mt-2">
-                      <i className="bi bi-graph-up me-1"></i>
-                      Based on {completedEvents} completed events
-                    </div>
-                  </div>
-                </div>
-                <div className="col-md-3 mb-3">
-                  <div className="p-3 rounded bg-warning bg-opacity-10">
-                    <h6 className="text-warning mb-1">Upcoming Events</h6>
-                    <h2 className="mb-0">{upcomingEvents}</h2>
-                    <div className="small text-muted mt-2">
-                      <i className="bi bi-calendar-plus me-1"></i>
-                      {ongoingEvents} ongoing | {cancelledEvents} cancelled
-                    </div>
-                  </div>
-                </div>
-              </div>
+        {eventsLoading ? (
+          <div className="text-center py-5">
+            <div className="spinner-border text-primary" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+            <p className="mt-2 text-muted">Loading events...</p>
+          </div>
+        ) : (
+          <>
+            {/* Event Statistics Panel */}
+            <div className="dashboard-card mb-4">
+              <h5 className="mb-3">Event Analytics</h5>
+              <div className="row g-4">
+                {/* Status Breakdown */}
+                <div className="col-lg-8">
+                  <div className="card h-100 border-0 shadow-sm">
+                    <div className="card-body">
+                      <h6 className="card-title text-muted mb-3">
+                        Event Overview
+                      </h6>
+                      <div className="row">
+                        <div className="col-6 col-md-3 mb-3 text-center">
+                          <div className="d-flex flex-column align-items-center">
+                            <div className="bg-primary bg-opacity-10 rounded-circle p-3 mb-2">
+                              <i className="bi bi-calendar-check fs-4 text-primary"></i>
+                            </div>
+                            <h3 className="mb-0">{eventStats.total}</h3>
+                            <p className="text-muted small">Total Events</p>
+                          </div>
+                        </div>
+                        <div className="col-6 col-md-3 mb-3 text-center">
+                          <div className="d-flex flex-column align-items-center">
+                            <div className="bg-success bg-opacity-10 rounded-circle p-3 mb-2">
+                              <i className="bi bi-calendar-date fs-4 text-success"></i>
+                            </div>
+                            <h3 className="mb-0">
+                              {eventStats.byStatus.upcoming}
+                            </h3>
+                            <p className="text-muted small">Upcoming</p>
+                          </div>
+                        </div>
+                        <div className="col-6 col-md-3 mb-3 text-center">
+                          <div className="d-flex flex-column align-items-center">
+                            <div className="bg-info bg-opacity-10 rounded-circle p-3 mb-2">
+                              <i className="bi bi-calendar-event fs-4 text-info"></i>
+                            </div>
+                            <h3 className="mb-0">
+                              {eventStats.byStatus.ongoing}
+                            </h3>
+                            <p className="text-muted small">Ongoing</p>
+                          </div>
+                        </div>
+                        <div className="col-6 col-md-3 mb-3 text-center">
+                          <div className="d-flex flex-column align-items-center">
+                            <div className="bg-secondary bg-opacity-10 rounded-circle p-3 mb-2">
+                              <i className="bi bi-calendar2-check fs-4 text-secondary"></i>
+                            </div>
+                            <h3 className="mb-0">
+                              {eventStats.byStatus.completed}
+                            </h3>
+                            <p className="text-muted small">Completed</p>
+                          </div>
+                        </div>
+                      </div>
 
-              <hr className="my-4" />
-
-              <div className="row">
-                <div className="col-md-8 mb-3 mb-md-0">
-                  <h6 className="mb-3">Event Status Distribution</h6>
-                  <div className="progress" style={{ height: "25px" }}>
-                    {upcomingEvents > 0 && (
-                      <div
-                        className="progress-bar bg-primary"
-                        style={{
-                          width: `${(upcomingEvents / totalEvents) * 100}%`,
-                        }}
-                        title={`Upcoming: ${upcomingEvents}`}
-                      >
-                        Upcoming ({upcomingEvents})
+                      <div className="mt-3">
+                        <h6 className="text-muted mb-2">
+                          Top Event Categories
+                        </h6>
+                        <div className="row">
+                          {topCategories.map(([category, count]) => (
+                            <div key={category} className="col-md-6 mb-2">
+                              <div className="d-flex justify-content-between align-items-center">
+                                <span>{category}</span>
+                                <span className="badge bg-primary rounded-pill">
+                                  {count}
+                                </span>
+                              </div>
+                              <div
+                                className="progress mt-1"
+                                style={{ height: "5px" }}
+                              >
+                                <div
+                                  className="progress-bar"
+                                  role="progressbar"
+                                  style={{
+                                    width: `${
+                                      (count / eventStats.total) * 100
+                                    }%`,
+                                  }}
+                                  aria-valuenow={
+                                    (count / eventStats.total) * 100
+                                  }
+                                  aria-valuemin={0}
+                                  aria-valuemax={100}
+                                ></div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    )}
-                    {ongoingEvents > 0 && (
-                      <div
-                        className="progress-bar bg-success"
-                        style={{
-                          width: `${(ongoingEvents / totalEvents) * 100}%`,
-                        }}
-                        title={`Ongoing: ${ongoingEvents}`}
-                      >
-                        Ongoing ({ongoingEvents})
-                      </div>
-                    )}
-                    {completedEvents > 0 && (
-                      <div
-                        className="progress-bar bg-secondary"
-                        style={{
-                          width: `${(completedEvents / totalEvents) * 100}%`,
-                        }}
-                        title={`Completed: ${completedEvents}`}
-                      >
-                        Completed ({completedEvents})
-                      </div>
-                    )}
-                    {cancelledEvents > 0 && (
-                      <div
-                        className="progress-bar bg-danger"
-                        style={{
-                          width: `${(cancelledEvents / totalEvents) * 100}%`,
-                        }}
-                        title={`Cancelled: ${cancelledEvents}`}
-                      >
-                        Cancelled ({cancelledEvents})
-                      </div>
-                    )}
+                    </div>
                   </div>
                 </div>
-                <div className="col-md-4">
-                  <h6 className="mb-3">Top Event Categories</h6>
-                  <ul className="list-group">
-                    {Object.entries(categoryMap)
-                      .sort((a, b) => b[1] - a[1])
-                      .slice(0, 3)
-                      .map(([category, count], index) => (
-                        <li
-                          key={category}
-                          className="list-group-item d-flex justify-content-between align-items-center"
-                        >
-                          {category}
-                          <span className="badge bg-primary rounded-pill">
-                            {count}
+
+                {/* Performance Metrics */}
+                <div className="col-lg-4">
+                  <div className="card h-100 border-0 shadow-sm">
+                    <div className="card-body">
+                      <h6 className="card-title text-muted mb-3">
+                        Performance Metrics
+                      </h6>
+
+                      <div className="mb-4">
+                        <div className="d-flex justify-content-between align-items-center mb-1">
+                          <span>Attendance Rate</span>
+                          <span className="fw-bold">
+                            {eventStats.participationRate.toFixed(1)}%
                           </span>
-                        </li>
-                      ))}
-                  </ul>
+                        </div>
+                        <div className="progress" style={{ height: "8px" }}>
+                          <div
+                            className="progress-bar bg-success"
+                            role="progressbar"
+                            style={{
+                              width: `${Math.min(
+                                eventStats.participationRate,
+                                100
+                              )}%`,
+                            }}
+                            aria-valuenow={Math.min(
+                              eventStats.participationRate,
+                              100
+                            )}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                          ></div>
+                        </div>
+                        <small className="text-muted">
+                          Actual vs Expected Participation
+                        </small>
+                      </div>
+
+                      <div className="mb-4">
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                          <span>Completion Rate</span>
+                          <span className="fw-bold">
+                            {eventStats.total > 0
+                              ? (
+                                  (eventStats.byStatus.completed /
+                                    eventStats.total) *
+                                  100
+                                ).toFixed(1)
+                              : 0}
+                            %
+                          </span>
+                        </div>
+                        <div className="progress" style={{ height: "8px" }}>
+                          <div
+                            className="progress-bar bg-info"
+                            role="progressbar"
+                            style={{
+                              width: `${
+                                eventStats.total > 0
+                                  ? (eventStats.byStatus.completed /
+                                      eventStats.total) *
+                                    100
+                                  : 0
+                              }%`,
+                            }}
+                            aria-valuenow={
+                              eventStats.total > 0
+                                ? (eventStats.byStatus.completed /
+                                    eventStats.total) *
+                                  100
+                                : 0
+                            }
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                          ></div>
+                        </div>
+                        <small className="text-muted">
+                          Completed vs Total Events
+                        </small>
+                      </div>
+
+                      <div className="mt-4">
+                        <div className="d-flex align-items-center">
+                          <div className="bg-warning bg-opacity-10 rounded-circle p-3 me-3">
+                            <i className="bi bi-calendar-week fs-4 text-warning"></i>
+                          </div>
+                          <div>
+                            <h4 className="mb-0">{eventStats.upcomingCount}</h4>
+                            <p className="text-muted small mb-0">
+                              Upcoming Events This Month
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        <div className="row mb-4">
-          <div className="col-12">
             <div className="dashboard-card">
               <div className="d-flex justify-content-between align-items-center mb-4">
                 <div>
@@ -2249,6 +2089,7 @@ export default function AdminDashboard() {
                               )
                             }
                             min="0"
+                            step="1"
                           />
                         </div>
                         <div className="col-md-4 mb-3 mb-md-0">
@@ -2265,10 +2106,8 @@ export default function AdminDashboard() {
                               )
                             }
                             min="0"
+                            step="1"
                           />
-                          <small className="text-muted">
-                            Fill after event completion
-                          </small>
                         </div>
                         <div className="col-md-4">
                           <label className="form-label">Status</label>
@@ -2276,7 +2115,6 @@ export default function AdminDashboard() {
                             className="form-select"
                             value={eventStatus}
                             onChange={(e) => setEventStatus(e.target.value)}
-                            required
                           >
                             {statusOptions.map((status) => (
                               <option key={status} value={status}>
@@ -2287,30 +2125,10 @@ export default function AdminDashboard() {
                         </div>
                       </div>
 
-                      <div className="mb-4">
-                        <label className="form-label">
-                          Success Rate: {eventSuccessRate}%
-                        </label>
-                        <input
-                          type="range"
-                          className="form-range"
-                          min="0"
-                          max="100"
-                          step="5"
-                          value={eventSuccessRate}
-                          onChange={(e) =>
-                            setEventSuccessRate(parseInt(e.target.value))
-                          }
-                        />
-                        <small className="text-muted">
-                          Evaluate event success after completion
-                        </small>
-                      </div>
-
-                      <div className="d-flex justify-content-end gap-2">
+                      <div className="d-flex justify-content-end mt-4">
                         <button
                           type="button"
-                          className="btn btn-outline-secondary"
+                          className="btn btn-outline-secondary me-2"
                           onClick={resetEventForm}
                         >
                           Cancel
@@ -2324,104 +2142,304 @@ export default function AdminDashboard() {
                 </div>
               )}
 
-              {eventsLoading ? (
-                <div className="text-center py-5">
-                  <div className="spinner-border text-primary" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                  </div>
-                  <p className="mt-2 text-muted">Loading events...</p>
+              {events.length === 0 ? (
+                <div className="alert alert-info text-center">
+                  <i className="bi bi-info-circle-fill me-2"></i>
+                  No events found. Click "Create New Event" to add one.
                 </div>
               ) : (
-                <>
-                  {events.length === 0 ? (
-                    <div className="alert alert-info text-center">
-                      <i className="bi bi-info-circle-fill me-2"></i>
-                      No events found. Click "Create New Event" to add one.
-                    </div>
-                  ) : (
-                    <div className="table-responsive">
-                      <table className="table table-hover">
-                        <thead className="table-light">
-                          <tr>
-                            <th>Event Title</th>
-                            <th>Category</th>
-                            <th>Location</th>
-                            <th>Date</th>
-                            <th>Time</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {events.map((event) => (
-                            <tr key={event.id}>
-                              <td>{event.title}</td>
-                              <td>
-                                <span className="badge bg-info bg-opacity-10 text-info">
-                                  {event.category}
-                                </span>
-                              </td>
-                              <td>{event.location}</td>
-                              <td>
-                                {event.startDate === event.endDate
-                                  ? new Date(
-                                      event.startDate
-                                    ).toLocaleDateString()
-                                  : `${new Date(
-                                      event.startDate
-                                    ).toLocaleDateString()} - ${new Date(
-                                      event.endDate
-                                    ).toLocaleDateString()}`}
-                              </td>
-                              <td>
-                                {event.startTime} - {event.endTime}
-                              </td>
-                              <td>
-                                <span
-                                  className={`badge ${
-                                    event.status === "Upcoming"
-                                      ? "bg-primary"
-                                      : event.status === "Ongoing"
-                                      ? "bg-success"
-                                      : event.status === "Completed"
-                                      ? "bg-secondary"
-                                      : "bg-danger"
-                                  }`}
-                                >
-                                  {event.status}
-                                </span>
-                              </td>
-                              <td>
-                                <div className="btn-group btn-group-sm">
-                                  <button
-                                    className="btn btn-outline-primary"
-                                    onClick={() => handleEditEvent(event)}
-                                  >
-                                    <i className="bi bi-pencil"></i>
-                                  </button>
-                                  <button
-                                    className="btn btn-outline-danger"
-                                    onClick={() => handleDeleteEvent(event.id)}
-                                  >
-                                    <i className="bi bi-trash"></i>
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </>
+                <div className="table-responsive">
+                  <table className="table table-hover">
+                    <thead className="table-light">
+                      <tr>
+                        <th>Event Title</th>
+                        <th>Category</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {events.map((event) => (
+                        <tr key={event.id}>
+                          <td>{event.title}</td>
+                          <td>
+                            <span className="badge bg-info bg-opacity-10 text-info">
+                              {event.category}
+                            </span>
+                          </td>
+                          <td>
+                            {event.startDate === event.endDate
+                              ? new Date(event.startDate).toLocaleDateString()
+                              : `${new Date(
+                                  event.startDate
+                                ).toLocaleDateString()} - ${new Date(
+                                  event.endDate
+                                ).toLocaleDateString()}`}
+                          </td>
+                          <td>
+                            <span
+                              className={`badge ${
+                                event.status === "Upcoming"
+                                  ? "bg-primary"
+                                  : event.status === "Ongoing"
+                                  ? "bg-success"
+                                  : event.status === "Completed"
+                                  ? "bg-secondary"
+                                  : "bg-danger"
+                              }`}
+                            >
+                              {event.status}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="btn-group btn-group-sm">
+                              <button
+                                className="btn btn-outline-primary"
+                                onClick={() => handleEditEvent(event)}
+                              >
+                                <i className="bi bi-pencil"></i>
+                              </button>
+                              <button
+                                className="btn btn-outline-danger"
+                                onClick={() => handleDeleteEvent(event.id)}
+                              >
+                                <i className="bi bi-trash"></i>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
-          </div>
-        </div>
+          </>
+        )}
       </div>
     );
   };
 
+  // Fetch all users when component mounts
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  // Load events data from Firestore
+  useEffect(() => {
+    async function fetchEvents() {
+      try {
+        setEventsLoading(true);
+        const eventsCollection = collection(db, "events");
+        const eventSnapshot = await getDocs(eventsCollection);
+
+        const eventList = eventSnapshot.docs.map((doc) => {
+          const data = doc.data();
+
+          // Process createdAt
+          let createdAtDate = new Date();
+          if (typeof data.createdAt === "string") {
+            createdAtDate = new Date(data.createdAt);
+          } else if (
+            data.createdAt?.toDate &&
+            typeof data.createdAt.toDate === "function"
+          ) {
+            createdAtDate = data.createdAt.toDate();
+          }
+
+          // Return a properly typed event with fallbacks for undefined values
+          return {
+            id: doc.id,
+            title: data.title || "",
+            description: data.description || "",
+            location: data.location || "",
+            organizer: data.organizer || "",
+            partnership: data.partnership || "",
+            category: data.category || "Academic",
+            startDate: data.startDate || "",
+            endDate: data.endDate || "",
+            startTime: data.startTime || "",
+            endTime: data.endTime || "",
+            expectedParticipants: Number(data.expectedParticipants) || 0,
+            actualParticipants: Number(data.actualParticipants) || 0,
+            successRate: Number(data.successRate) || 0,
+            status: data.status || "Upcoming",
+            createdAt: createdAtDate,
+            createdBy: data.createdBy || "unknown",
+          };
+        });
+
+        setEvents(eventList);
+      } catch (err) {
+        console.error("Error fetching events:", err);
+        setError("Failed to load events. Please try again.");
+      } finally {
+        setEventsLoading(false);
+      }
+    }
+
+    if (activeSection === "events") {
+      fetchEvents();
+    }
+  }, [activeSection]);
+
+  // Reset event form
+  const resetEventForm = () => {
+    setEventTitle("");
+    setEventDescription("");
+    setEventLocation("");
+    setEventOrganizer("");
+    setEventPartnership("");
+    setEventCategory("Academic");
+    setEventStartDate("");
+    setEventEndDate("");
+    setEventStartTime("");
+    setEventEndTime("");
+    setEventExpectedParticipants(0);
+    setEventActualParticipants(0);
+    setEventSuccessRate(0);
+    setEventStatus("Upcoming");
+    setEditingEvent(null);
+    setIsAddingEvent(false);
+  };
+
+  // Handle edit event
+  const handleEditEvent = (event: any) => {
+    // Convert undefined values to defaults
+    setEventTitle(event.title || "");
+    setEventDescription(event.description || "");
+    setEventLocation(event.location || "");
+    setEventOrganizer(event.organizer || "");
+    setEventPartnership(event.partnership || "");
+    setEventCategory(event.category || "Academic");
+    setEventStartDate(event.startDate || "");
+    setEventEndDate(event.endDate || "");
+    setEventStartTime(event.startTime || "");
+    setEventEndTime(event.endTime || "");
+    setEventExpectedParticipants(
+      typeof event.expectedParticipants === "number"
+        ? event.expectedParticipants
+        : 0
+    );
+    setEventActualParticipants(
+      typeof event.actualParticipants === "number"
+        ? event.actualParticipants
+        : 0
+    );
+    setEventSuccessRate(
+      typeof event.successRate === "number" ? event.successRate : 0
+    );
+    setEventStatus(event.status || "Upcoming");
+    setEditingEvent(event.id);
+    setIsAddingEvent(true);
+    showNotification("Event loaded for editing");
+  };
+
+  // Handle delete event
+  const handleDeleteEvent = async (eventId: string) => {
+    if (!confirm("Are you sure you want to delete this event?")) {
+      return;
+    }
+
+    try {
+      setEventsLoading(true);
+
+      // Delete from Firestore
+      const eventRef = doc(db, "events", eventId);
+      await deleteDoc(eventRef);
+
+      // Update UI
+      setEvents(events.filter((event) => event.id !== eventId));
+      showNotification("Event deleted successfully");
+    } catch (err) {
+      console.error("Error deleting event:", err);
+      showNotification("Failed to delete event. Please try again.");
+    } finally {
+      setEventsLoading(false);
+    }
+  };
+
+  // Handle form submit for event
+  const handleEventFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    // Show loading state
+    setEventsLoading(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      // Ensure all fields have non-undefined values and use proper types
+      const eventData = {
+        title: eventTitle || "",
+        description: eventDescription || "",
+        location: eventLocation || "",
+        organizer: eventOrganizer || "",
+        partnership: eventPartnership || "",
+        category: eventCategory || "Academic",
+        startDate: eventStartDate || "",
+        endDate: eventEndDate || "",
+        startTime: eventStartTime || "",
+        endTime: eventEndTime || "",
+        expectedParticipants: Number(eventExpectedParticipants) || 0,
+        actualParticipants: Number(eventActualParticipants) || 0,
+        successRate: Number(eventSuccessRate) || 0,
+        status: eventStatus || "Upcoming",
+      };
+
+      if (editingEvent) {
+        // Update existing event in Firestore
+        const eventRef = doc(db, "events", editingEvent);
+        await updateDoc(eventRef, eventData);
+
+        // Update UI
+        setEvents(
+          events.map((event) =>
+            event.id === editingEvent
+              ? {
+                  ...eventData,
+                  id: editingEvent,
+                  createdAt: event.createdAt,
+                  createdBy: event.createdBy,
+                }
+              : event
+          )
+        );
+
+        showNotification("Event updated successfully");
+      } else {
+        // Add new event to Firestore
+        const eventsCollection = collection(db, "events");
+        const docRef = await addDoc(eventsCollection, {
+          ...eventData,
+          createdAt: new Date(),
+          createdBy: userData?.uid || "unknown",
+        });
+
+        // Update UI
+        const newEvent = {
+          ...eventData,
+          id: docRef.id,
+          createdAt: new Date(),
+          createdBy: userData?.uid || "unknown",
+        };
+        setEvents([...events, newEvent]);
+
+        showNotification("New event added successfully");
+      }
+
+      // Reset form
+      resetEventForm();
+    } catch (err) {
+      console.error("Error saving event:", err);
+      showNotification("Failed to save event. Please try again.");
+    } finally {
+      setEventsLoading(false);
+    }
+  };
+
+  // Actually return the UI for this component
   return (
     <div className="admin-layout">
       {/* Sidebar */}
