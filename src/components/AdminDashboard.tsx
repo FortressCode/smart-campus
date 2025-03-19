@@ -17,21 +17,26 @@ import {
   onSnapshot,
 } from "firebase/firestore";
 import { db } from "../firebase";
+// Comment out the Chart.js imports temporarily to isolate the issue
+// import { Chart } from 'chart.js/auto';
+// import { Bar, Pie, Line } from 'react-chartjs-2';
 
-// Define interface for schedule data
-interface Schedule {
-  id: string;
-  moduleTitle: string;
-  floorNumber: string;
-  classroomNumber: string;
-  lecturerName: string;
-  branch: string;
-  startTime: string;
-  endTime: string;
-  date: string;
-  dayOfWeek: string;
-  isRecurring: boolean;
-}
+// Add import for the chart components
+import {
+  DepartmentChart,
+  TimelineChart,
+  RoleChart,
+  FeedbackChart,
+} from "./EventCharts";
+
+// Add import for ChartWrapper
+import ChartWrapper from "./ChartWrapper";
+
+// Add import for the new ScheduleCalendar component
+import ScheduleCalendar from "./ScheduleCalendar";
+
+// Import the Schedule interface instead of defining it locally
+import { Schedule } from "../interfaces/Schedule";
 
 export default function AdminDashboard() {
   const {
@@ -117,6 +122,11 @@ export default function AdminDashboard() {
   const [eventActualParticipants, setEventActualParticipants] = useState(0);
   const [eventSuccessRate, setEventSuccessRate] = useState(0);
   const [eventStatus, setEventStatus] = useState("Upcoming");
+
+  // Add new state for demographics modal
+  const [showDemographicsModal, setShowDemographicsModal] = useState(false);
+  const [selectedEventForDemographics, setSelectedEventForDemographics] =
+    useState<any>(null);
 
   // Function to fetch users from Firestore
   const fetchUsers = async () => {
@@ -973,44 +983,6 @@ export default function AdminDashboard() {
       "Sunday",
     ];
 
-    // Calendar view functions
-    const groupSchedulesByDate = () => {
-      const grouped: Record<string, Schedule[]> = {};
-
-      schedules.forEach((schedule) => {
-        const date = schedule.date;
-        if (!grouped[date]) {
-          grouped[date] = [];
-        }
-        grouped[date].push(schedule);
-      });
-
-      return grouped;
-    };
-
-    const generateCalendarDays = () => {
-      // This is a simplified calendar view
-      // In a real app, you'd use a library like FullCalendar or react-big-calendar
-      const today = new Date();
-      const days = [];
-      const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-      const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-
-      for (let day = 1; day <= monthEnd.getDate(); day++) {
-        const date = new Date(today.getFullYear(), today.getMonth(), day);
-        const dateString = date.toISOString().split("T")[0]; // Format: YYYY-MM-DD
-
-        days.push({
-          date: dateString,
-          day: day,
-          isToday: date.getDate() === today.getDate(),
-          schedules: schedules.filter((s) => s.date === dateString),
-        });
-      }
-
-      return days;
-    };
-
     return (
       <div className="slide-in section-content">
         <div className="section-title mb-4">
@@ -1244,10 +1216,10 @@ export default function AdminDashboard() {
                       <tr>
                         <th>Module Title</th>
                         <th>Lecturer</th>
-                        <th>Room</th>
+                        <th>Location</th>
                         <th>Branch</th>
                         <th>Time</th>
-                        <th>Day/Date</th>
+                        <th>Date/Recurring</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
@@ -1305,73 +1277,12 @@ export default function AdminDashboard() {
                   </table>
                 </div>
               ) : (
-                <div className="calendar-view">
-                  <div className="row mb-4">
-                    <div className="col-12">
-                      <h5 className="text-center mb-3">October 2023</h5>
-                      <div className="calendar-grid">
-                        <div className="row mb-2">
-                          {daysOfWeek.map((day) => (
-                            <div key={day} className="col text-center">
-                              <div className="p-2 fw-bold">
-                                {day.substring(0, 3)}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                        <div className="row row-cols-7">
-                          {generateCalendarDays().map((day) => (
-                            <div key={day.date} className="col mb-3">
-                              <div
-                                className={`calendar-day p-2 ${
-                                  day.isToday
-                                    ? "bg-primary bg-opacity-10 border-primary"
-                                    : ""
-                                }`}
-                              >
-                                <div className="d-flex justify-content-between align-items-center mb-2">
-                                  <span
-                                    className={`${
-                                      day.isToday ? "fw-bold text-primary" : ""
-                                    }`}
-                                  >
-                                    {day.day}
-                                  </span>
-                                  {day.schedules.length > 0 && (
-                                    <span className="badge bg-primary rounded-pill">
-                                      {day.schedules.length}
-                                    </span>
-                                  )}
-                                </div>
-
-                                {day.schedules.map((schedule) => (
-                                  <div
-                                    key={schedule.id}
-                                    className="calendar-event p-1 mb-1 rounded"
-                                    style={{
-                                      backgroundColor: "rgba(67, 97, 238, 0.1)",
-                                      borderLeft:
-                                        "3px solid var(--primary-color)",
-                                      fontSize: "0.8rem",
-                                    }}
-                                    title={`${schedule.moduleTitle} - ${schedule.lecturerName}`}
-                                  >
-                                    <div className="fw-medium text-truncate">
-                                      {schedule.moduleTitle}
-                                    </div>
-                                    <div className="text-muted small">
-                                      {schedule.startTime} - {schedule.endTime}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                // Replace the custom calendar view with the new ScheduleCalendar component
+                <ScheduleCalendar
+                  schedules={schedules}
+                  onEditSchedule={handleEditSchedule}
+                  onDeleteSchedule={handleDeleteSchedule}
+                />
               )}
             </div>
           </div>
@@ -1448,6 +1359,8 @@ export default function AdminDashboard() {
     setSuccess("");
 
     try {
+      const currentTimestamp = new Date().toISOString();
+
       const scheduleData: Omit<Schedule, "id"> = {
         moduleTitle,
         floorNumber,
@@ -1459,12 +1372,21 @@ export default function AdminDashboard() {
         date: scheduleDate,
         dayOfWeek,
         isRecurring,
+        // Add createdAt and updatedAt fields for the Schedule interface
+        createdAt: editingSchedule
+          ? schedules.find((s) => s.id === editingSchedule)?.createdAt ||
+            currentTimestamp
+          : currentTimestamp,
+        updatedAt: currentTimestamp,
       };
 
       if (editingSchedule) {
         // Update existing schedule in Firestore
         const scheduleRef = doc(db, "schedules", editingSchedule);
-        await updateDoc(scheduleRef, scheduleData);
+        await updateDoc(scheduleRef, {
+          ...scheduleData,
+          updatedAt: currentTimestamp, // Ensure updatedAt is set on Firestore update
+        });
 
         // Update UI
         setSchedules(
@@ -1481,7 +1403,8 @@ export default function AdminDashboard() {
         const schedulesCollection = collection(db, "schedules");
         const docRef = await addDoc(schedulesCollection, {
           ...scheduleData,
-          createdAt: new Date(),
+          createdAt: currentTimestamp,
+          updatedAt: currentTimestamp,
           createdBy: userData?.uid || "unknown",
         });
 
@@ -1714,6 +1637,12 @@ export default function AdminDashboard() {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5);
 
+    // Add a function to handle demographics button click
+    const handleShowDemographics = (event: any) => {
+      setSelectedEventForDemographics(event);
+      setShowDemographicsModal(true);
+    };
+
     return (
       <div className="slide-in section-content">
         <div className="section-title mb-4">
@@ -1732,112 +1661,150 @@ export default function AdminDashboard() {
           <>
             {/* Event Statistics Panel */}
             <div className="dashboard-card mb-4">
-              <h5 className="mb-3">Event Analytics</h5>
+              <div className="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                  <h5 className="mb-1">Event Analytics</h5>
+                  <p className="text-muted small mb-0">
+                    Overview of campus events and performance metrics
+                  </p>
+                </div>
+                <div className="btn-group">
+                  <button className="btn btn-light btn-sm">
+                    <i className="bi bi-calendar-week me-1"></i>Week
+                  </button>
+                  <button className="btn btn-primary btn-sm">
+                    <i className="bi bi-calendar-month me-1"></i>Month
+                  </button>
+                  <button className="btn btn-light btn-sm">
+                    <i className="bi bi-calendar3 me-1"></i>Year
+                  </button>
+                </div>
+              </div>
+
               <div className="row g-4">
-                {/* Status Breakdown */}
-                <div className="col-lg-8">
-                  <div className="card h-100 border-0 shadow-sm">
-                    <div className="card-body">
-                      <h6 className="card-title text-muted mb-3">
-                        Event Overview
-                      </h6>
-                      <div className="row">
-                        <div className="col-6 col-md-3 mb-3 text-center">
-                          <div className="d-flex flex-column align-items-center">
-                            <div className="bg-primary bg-opacity-10 rounded-circle p-3 mb-2">
-                              <i className="bi bi-calendar-check fs-4 text-primary"></i>
-                            </div>
-                            <h3 className="mb-0">{eventStats.total}</h3>
-                            <p className="text-muted small">Total Events</p>
-                          </div>
+                {/* Key Metrics Cards */}
+                <div className="col-md-3">
+                  <div className="card border-0 bg-white shadow-sm h-100">
+                    <div className="card-body p-4">
+                      <div className="d-flex align-items-center mb-3">
+                        <div className="bg-primary bg-opacity-10 rounded-circle p-3 me-3">
+                          <i className="bi bi-calendar-check fs-4 text-primary"></i>
                         </div>
-                        <div className="col-6 col-md-3 mb-3 text-center">
-                          <div className="d-flex flex-column align-items-center">
-                            <div className="bg-success bg-opacity-10 rounded-circle p-3 mb-2">
-                              <i className="bi bi-calendar-date fs-4 text-success"></i>
-                            </div>
-                            <h3 className="mb-0">
-                              {eventStats.byStatus.upcoming}
-                            </h3>
-                            <p className="text-muted small">Upcoming</p>
-                          </div>
-                        </div>
-                        <div className="col-6 col-md-3 mb-3 text-center">
-                          <div className="d-flex flex-column align-items-center">
-                            <div className="bg-info bg-opacity-10 rounded-circle p-3 mb-2">
-                              <i className="bi bi-calendar-event fs-4 text-info"></i>
-                            </div>
-                            <h3 className="mb-0">
-                              {eventStats.byStatus.ongoing}
-                            </h3>
-                            <p className="text-muted small">Ongoing</p>
-                          </div>
-                        </div>
-                        <div className="col-6 col-md-3 mb-3 text-center">
-                          <div className="d-flex flex-column align-items-center">
-                            <div className="bg-secondary bg-opacity-10 rounded-circle p-3 mb-2">
-                              <i className="bi bi-calendar2-check fs-4 text-secondary"></i>
-                            </div>
-                            <h3 className="mb-0">
-                              {eventStats.byStatus.completed}
-                            </h3>
-                            <p className="text-muted small">Completed</p>
-                          </div>
+                        <div>
+                          <h6 className="text-muted small mb-1">
+                            Total Events
+                          </h6>
+                          <h3 className="mb-0 fw-bold">{eventStats.total}</h3>
                         </div>
                       </div>
+                      <div className="progress" style={{ height: "4px" }}>
+                        <div
+                          className="progress-bar bg-primary"
+                          style={{ width: "100%" }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-                      <div className="mt-3">
-                        <h6 className="text-muted mb-2">
-                          Top Event Categories
-                        </h6>
-                        <div className="row">
-                          {topCategories.map(([category, count]) => (
-                            <div key={category} className="col-md-6 mb-2">
-                              <div className="d-flex justify-content-between align-items-center">
-                                <span>{category}</span>
-                                <span className="badge bg-primary rounded-pill">
-                                  {count}
-                                </span>
-                              </div>
-                              <div
-                                className="progress mt-1"
-                                style={{ height: "5px" }}
-                              >
-                                <div
-                                  className="progress-bar"
-                                  role="progressbar"
-                                  style={{
-                                    width: `${
-                                      (count / eventStats.total) * 100
-                                    }%`,
-                                  }}
-                                  aria-valuenow={
-                                    (count / eventStats.total) * 100
-                                  }
-                                  aria-valuemin={0}
-                                  aria-valuemax={100}
-                                ></div>
-                              </div>
-                            </div>
-                          ))}
+                <div className="col-md-3">
+                  <div className="card border-0 bg-white shadow-sm h-100">
+                    <div className="card-body p-4">
+                      <div className="d-flex align-items-center mb-3">
+                        <div className="bg-success bg-opacity-10 rounded-circle p-3 me-3">
+                          <i className="bi bi-calendar-date fs-4 text-success"></i>
                         </div>
+                        <div>
+                          <h6 className="text-muted small mb-1">Upcoming</h6>
+                          <h3 className="mb-0 fw-bold">
+                            {eventStats.byStatus.upcoming}
+                          </h3>
+                        </div>
+                      </div>
+                      <div className="progress" style={{ height: "4px" }}>
+                        <div
+                          className="progress-bar bg-success"
+                          style={{
+                            width: `${
+                              (eventStats.byStatus.upcoming /
+                                eventStats.total) *
+                              100
+                            }%`,
+                          }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="col-md-3">
+                  <div className="card border-0 bg-white shadow-sm h-100">
+                    <div className="card-body p-4">
+                      <div className="d-flex align-items-center mb-3">
+                        <div className="bg-info bg-opacity-10 rounded-circle p-3 me-3">
+                          <i className="bi bi-calendar-event fs-4 text-info"></i>
+                        </div>
+                        <div>
+                          <h6 className="text-muted small mb-1">Ongoing</h6>
+                          <h3 className="mb-0 fw-bold">
+                            {eventStats.byStatus.ongoing}
+                          </h3>
+                        </div>
+                      </div>
+                      <div className="progress" style={{ height: "4px" }}>
+                        <div
+                          className="progress-bar bg-info"
+                          style={{
+                            width: `${
+                              (eventStats.byStatus.ongoing / eventStats.total) *
+                              100
+                            }%`,
+                          }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="col-md-3">
+                  <div className="card border-0 bg-white shadow-sm h-100">
+                    <div className="card-body p-4">
+                      <div className="d-flex align-items-center mb-3">
+                        <div className="bg-secondary bg-opacity-10 rounded-circle p-3 me-3">
+                          <i className="bi bi-calendar2-check fs-4 text-secondary"></i>
+                        </div>
+                        <div>
+                          <h6 className="text-muted small mb-1">Completed</h6>
+                          <h3 className="mb-0 fw-bold">
+                            {eventStats.byStatus.completed}
+                          </h3>
+                        </div>
+                      </div>
+                      <div className="progress" style={{ height: "4px" }}>
+                        <div
+                          className="progress-bar bg-secondary"
+                          style={{
+                            width: `${
+                              (eventStats.byStatus.completed /
+                                eventStats.total) *
+                              100
+                            }%`,
+                          }}
+                        ></div>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Performance Metrics */}
-                <div className="col-lg-4">
-                  <div className="card h-100 border-0 shadow-sm">
-                    <div className="card-body">
-                      <h6 className="card-title text-muted mb-3">
-                        Performance Metrics
-                      </h6>
-
+                <div className="col-md-6">
+                  <div className="card border-0 bg-white shadow-sm h-100">
+                    <div className="card-body p-4">
+                      <h6 className="text-muted mb-4">Performance Metrics</h6>
                       <div className="mb-4">
-                        <div className="d-flex justify-content-between align-items-center mb-1">
-                          <span>Attendance Rate</span>
-                          <span className="fw-bold">
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                          <span className="text-muted">Attendance Rate</span>
+                          <span className="fw-bold text-success">
                             {eventStats.participationRate.toFixed(1)}%
                           </span>
                         </div>
@@ -1859,15 +1826,11 @@ export default function AdminDashboard() {
                             aria-valuemax={100}
                           ></div>
                         </div>
-                        <small className="text-muted">
-                          Actual vs Expected Participation
-                        </small>
                       </div>
-
-                      <div className="mb-4">
+                      <div>
                         <div className="d-flex justify-content-between align-items-center mb-2">
-                          <span>Completion Rate</span>
-                          <span className="fw-bold">
+                          <span className="text-muted">Completion Rate</span>
+                          <span className="fw-bold text-info">
                             {eventStats.total > 0
                               ? (
                                   (eventStats.byStatus.completed /
@@ -1902,23 +1865,41 @@ export default function AdminDashboard() {
                             aria-valuemax={100}
                           ></div>
                         </div>
-                        <small className="text-muted">
-                          Completed vs Total Events
-                        </small>
                       </div>
+                    </div>
+                  </div>
+                </div>
 
-                      <div className="mt-4">
-                        <div className="d-flex align-items-center">
-                          <div className="bg-warning bg-opacity-10 rounded-circle p-3 me-3">
-                            <i className="bi bi-calendar-week fs-4 text-warning"></i>
+                {/* Top Categories */}
+                <div className="col-md-6">
+                  <div className="card border-0 bg-white shadow-sm h-100">
+                    <div className="card-body p-4">
+                      <h6 className="text-muted mb-4">Top Event Categories</h6>
+                      <div className="row">
+                        {topCategories.map(([category, count]) => (
+                          <div key={category} className="col-6 mb-3">
+                            <div className="d-flex justify-content-between align-items-center mb-2">
+                              <span className="text-muted small">
+                                {category}
+                              </span>
+                              <span className="badge bg-primary bg-opacity-10 text-primary rounded-pill px-2 py-1">
+                                {count}
+                              </span>
+                            </div>
+                            <div className="progress" style={{ height: "6px" }}>
+                              <div
+                                className="progress-bar bg-primary"
+                                role="progressbar"
+                                style={{
+                                  width: `${(count / eventStats.total) * 100}%`,
+                                }}
+                                aria-valuenow={(count / eventStats.total) * 100}
+                                aria-valuemin={0}
+                                aria-valuemax={100}
+                              ></div>
+                            </div>
                           </div>
-                          <div>
-                            <h4 className="mb-0">{eventStats.upcomingCount}</h4>
-                            <p className="text-muted small mb-0">
-                              Upcoming Events This Month
-                            </p>
-                          </div>
-                        </div>
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -1926,6 +1907,228 @@ export default function AdminDashboard() {
               </div>
             </div>
 
+            {/* Event Form - When Adding/Editing */}
+            {isAddingEvent && (
+              <div className="dashboard-card mb-4">
+                <div className="d-flex justify-content-between align-items-center mb-4">
+                  <h5 className="mb-0">
+                    {editingEvent ? "Edit Event" : "Create New Event"}
+                  </h5>
+                  <button
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={resetEventForm}
+                  >
+                    <i className="bi bi-x-lg"></i> Cancel
+                  </button>
+                </div>
+                <form onSubmit={handleEventFormSubmit}>
+                  <div className="row mb-3">
+                    <div className="col-md-6 mb-3 mb-md-0">
+                      <label className="form-label">Event Title *</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={eventTitle}
+                        onChange={(e) => setEventTitle(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label">Event Category *</label>
+                      <select
+                        className="form-select"
+                        value={eventCategory}
+                        onChange={(e) => setEventCategory(e.target.value)}
+                        required
+                      >
+                        {eventCategories.map((category) => (
+                          <option key={category} value={category}>
+                            {category}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label">Description</label>
+                    <textarea
+                      className="form-control"
+                      rows={3}
+                      value={eventDescription}
+                      onChange={(e) => setEventDescription(e.target.value)}
+                    ></textarea>
+                  </div>
+
+                  <div className="row mb-3">
+                    <div className="col-md-6 mb-3 mb-md-0">
+                      <label className="form-label">Location *</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={eventLocation}
+                        onChange={(e) => setEventLocation(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label">Organizer *</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={eventOrganizer}
+                        onChange={(e) => setEventOrganizer(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label">Partnership (if any)</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={eventPartnership}
+                      onChange={(e) => setEventPartnership(e.target.value)}
+                      placeholder="External partners, sponsors, collaborators"
+                    />
+                  </div>
+
+                  <div className="row mb-3">
+                    <div className="col-md-3 mb-3 mb-md-0">
+                      <label className="form-label">Start Date *</label>
+                      <input
+                        type="date"
+                        className="form-control"
+                        value={eventStartDate}
+                        onChange={(e) => setEventStartDate(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="col-md-3 mb-3 mb-md-0">
+                      <label className="form-label">End Date *</label>
+                      <input
+                        type="date"
+                        className="form-control"
+                        value={eventEndDate}
+                        onChange={(e) => setEventEndDate(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="col-md-3 mb-3 mb-md-0">
+                      <label className="form-label">Start Time *</label>
+                      <input
+                        type="time"
+                        className="form-control"
+                        value={eventStartTime}
+                        onChange={(e) => setEventStartTime(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="col-md-3">
+                      <label className="form-label">End Time *</label>
+                      <input
+                        type="time"
+                        className="form-control"
+                        value={eventEndTime}
+                        onChange={(e) => setEventEndTime(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="row mb-3">
+                    <div className="col-md-4 mb-3 mb-md-0">
+                      <label className="form-label">
+                        Expected Participants
+                      </label>
+                      <input
+                        type="number"
+                        className="form-control"
+                        value={eventExpectedParticipants}
+                        onChange={(e) =>
+                          setEventExpectedParticipants(
+                            parseInt(e.target.value) || 0
+                          )
+                        }
+                        min="0"
+                        step="1"
+                      />
+                    </div>
+                    <div className="col-md-4 mb-3 mb-md-0">
+                      <label className="form-label">Actual Participants</label>
+                      <input
+                        type="number"
+                        className="form-control"
+                        value={eventActualParticipants}
+                        onChange={(e) =>
+                          setEventActualParticipants(
+                            parseInt(e.target.value) || 0
+                          )
+                        }
+                        min="0"
+                        step="1"
+                      />
+                    </div>
+                    <div className="col-md-4">
+                      <label className="form-label">Status</label>
+                      <select
+                        className="form-select"
+                        value={eventStatus}
+                        onChange={(e) => setEventStatus(e.target.value)}
+                      >
+                        {statusOptions.map((status) => (
+                          <option key={status} value={status}>
+                            {status}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="row mb-3">
+                    <div className="col-12">
+                      <label className="form-label">
+                        Success Rate {eventSuccessRate}%
+                      </label>
+                      <input
+                        type="range"
+                        className="form-range"
+                        min="0"
+                        max="100"
+                        step="1"
+                        value={eventSuccessRate}
+                        onChange={(e) =>
+                          setEventSuccessRate(parseInt(e.target.value))
+                        }
+                      />
+                      <div className="d-flex justify-content-between small text-muted">
+                        <span>0%</span>
+                        <span>25%</span>
+                        <span>50%</span>
+                        <span>75%</span>
+                        <span>100%</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="d-flex justify-content-end mt-4">
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary me-2"
+                      onClick={resetEventForm}
+                    >
+                      Cancel
+                    </button>
+                    <button type="submit" className="btn btn-primary">
+                      {editingEvent ? "Update Event" : "Create Event"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* Events List Table */}
             <div className="dashboard-card">
               <div className="d-flex justify-content-between align-items-center mb-4">
                 <div>
@@ -1934,213 +2137,16 @@ export default function AdminDashboard() {
                     Manage all campus events and activities
                   </p>
                 </div>
-                <button
-                  className="btn btn-primary"
-                  onClick={() => setIsAddingEvent(true)}
-                >
-                  <i className="bi bi-plus-circle me-2"></i>
-                  Create New Event
-                </button>
+                {!isAddingEvent && (
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => setIsAddingEvent(true)}
+                  >
+                    <i className="bi bi-plus-circle me-2"></i>
+                    Create New Event
+                  </button>
+                )}
               </div>
-
-              {isAddingEvent && (
-                <div className="card mb-4">
-                  <div className="card-header d-flex justify-content-between align-items-center">
-                    <h5 className="mb-0">
-                      {editingEvent ? "Edit Event" : "Create New Event"}
-                    </h5>
-                    <button
-                      type="button"
-                      className="btn-close"
-                      onClick={resetEventForm}
-                    ></button>
-                  </div>
-                  <div className="card-body">
-                    <form onSubmit={handleEventFormSubmit}>
-                      <div className="row mb-3">
-                        <div className="col-md-6 mb-3 mb-md-0">
-                          <label className="form-label">Event Title *</label>
-                          <input
-                            type="text"
-                            className="form-control"
-                            value={eventTitle}
-                            onChange={(e) => setEventTitle(e.target.value)}
-                            required
-                          />
-                        </div>
-                        <div className="col-md-6">
-                          <label className="form-label">Event Category *</label>
-                          <select
-                            className="form-select"
-                            value={eventCategory}
-                            onChange={(e) => setEventCategory(e.target.value)}
-                            required
-                          >
-                            {eventCategories.map((category) => (
-                              <option key={category} value={category}>
-                                {category}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="mb-3">
-                        <label className="form-label">Description</label>
-                        <textarea
-                          className="form-control"
-                          rows={3}
-                          value={eventDescription}
-                          onChange={(e) => setEventDescription(e.target.value)}
-                        ></textarea>
-                      </div>
-
-                      <div className="row mb-3">
-                        <div className="col-md-6 mb-3 mb-md-0">
-                          <label className="form-label">Location *</label>
-                          <input
-                            type="text"
-                            className="form-control"
-                            value={eventLocation}
-                            onChange={(e) => setEventLocation(e.target.value)}
-                            required
-                          />
-                        </div>
-                        <div className="col-md-6">
-                          <label className="form-label">Organizer *</label>
-                          <input
-                            type="text"
-                            className="form-control"
-                            value={eventOrganizer}
-                            onChange={(e) => setEventOrganizer(e.target.value)}
-                            required
-                          />
-                        </div>
-                      </div>
-
-                      <div className="mb-3">
-                        <label className="form-label">
-                          Partnership (if any)
-                        </label>
-                        <input
-                          type="text"
-                          className="form-control"
-                          value={eventPartnership}
-                          onChange={(e) => setEventPartnership(e.target.value)}
-                          placeholder="External partners, sponsors, collaborators"
-                        />
-                      </div>
-
-                      <div className="row mb-3">
-                        <div className="col-md-3 mb-3 mb-md-0">
-                          <label className="form-label">Start Date *</label>
-                          <input
-                            type="date"
-                            className="form-control"
-                            value={eventStartDate}
-                            onChange={(e) => setEventStartDate(e.target.value)}
-                            required
-                          />
-                        </div>
-                        <div className="col-md-3 mb-3 mb-md-0">
-                          <label className="form-label">End Date *</label>
-                          <input
-                            type="date"
-                            className="form-control"
-                            value={eventEndDate}
-                            onChange={(e) => setEventEndDate(e.target.value)}
-                            required
-                          />
-                        </div>
-                        <div className="col-md-3 mb-3 mb-md-0">
-                          <label className="form-label">Start Time *</label>
-                          <input
-                            type="time"
-                            className="form-control"
-                            value={eventStartTime}
-                            onChange={(e) => setEventStartTime(e.target.value)}
-                            required
-                          />
-                        </div>
-                        <div className="col-md-3">
-                          <label className="form-label">End Time *</label>
-                          <input
-                            type="time"
-                            className="form-control"
-                            value={eventEndTime}
-                            onChange={(e) => setEventEndTime(e.target.value)}
-                            required
-                          />
-                        </div>
-                      </div>
-
-                      <div className="row mb-3">
-                        <div className="col-md-4 mb-3 mb-md-0">
-                          <label className="form-label">
-                            Expected Participants
-                          </label>
-                          <input
-                            type="number"
-                            className="form-control"
-                            value={eventExpectedParticipants}
-                            onChange={(e) =>
-                              setEventExpectedParticipants(
-                                parseInt(e.target.value) || 0
-                              )
-                            }
-                            min="0"
-                            step="1"
-                          />
-                        </div>
-                        <div className="col-md-4 mb-3 mb-md-0">
-                          <label className="form-label">
-                            Actual Participants
-                          </label>
-                          <input
-                            type="number"
-                            className="form-control"
-                            value={eventActualParticipants}
-                            onChange={(e) =>
-                              setEventActualParticipants(
-                                parseInt(e.target.value) || 0
-                              )
-                            }
-                            min="0"
-                            step="1"
-                          />
-                        </div>
-                        <div className="col-md-4">
-                          <label className="form-label">Status</label>
-                          <select
-                            className="form-select"
-                            value={eventStatus}
-                            onChange={(e) => setEventStatus(e.target.value)}
-                          >
-                            {statusOptions.map((status) => (
-                              <option key={status} value={status}>
-                                {status}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="d-flex justify-content-end mt-4">
-                        <button
-                          type="button"
-                          className="btn btn-outline-secondary me-2"
-                          onClick={resetEventForm}
-                        >
-                          Cancel
-                        </button>
-                        <button type="submit" className="btn btn-primary">
-                          {editingEvent ? "Update Event" : "Create Event"}
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-              )}
 
               {events.length === 0 ? (
                 <div className="alert alert-info text-center">
@@ -2201,6 +2207,12 @@ export default function AdminDashboard() {
                                 <i className="bi bi-pencil"></i>
                               </button>
                               <button
+                                className="btn btn-outline-info"
+                                onClick={() => handleShowDemographics(event)}
+                              >
+                                <i className="bi bi-bar-chart"></i>
+                              </button>
+                              <button
                                 className="btn btn-outline-danger"
                                 onClick={() => handleDeleteEvent(event.id)}
                               >
@@ -2216,6 +2228,415 @@ export default function AdminDashboard() {
               )}
             </div>
           </>
+        )}
+
+        {/* Add demographics modal */}
+        {showDemographicsModal && selectedEventForDemographics && (
+          <div
+            className="modal d-block"
+            tabIndex={-1}
+            role="dialog"
+            style={{
+              backgroundColor: "rgba(0,0,0,0.7)",
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 1050,
+              overflowY: "auto",
+              overflowX: "hidden",
+            }}
+          >
+            <div
+              className="modal-dialog modal-xl"
+              role="document"
+              style={{
+                width: "90%",
+                maxWidth: "1400px",
+                margin: "30px auto",
+              }}
+            >
+              <div
+                className="modal-content"
+                style={{
+                  borderRadius: "8px",
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.3)",
+                }}
+              >
+                <div className="modal-header bg-primary text-white">
+                  <h5 className="modal-title">
+                    Event Demographics Analysis:{" "}
+                    {selectedEventForDemographics.title || "Untitled Event"}
+                  </h5>
+                  <button
+                    type="button"
+                    className="btn-close btn-close-white"
+                    onClick={() => {
+                      setShowDemographicsModal(false);
+                      setSelectedEventForDemographics(null);
+                    }}
+                    aria-label="Close"
+                  ></button>
+                </div>
+                <div className="modal-body bg-light">
+                  <div className="container-fluid py-4">
+                    <div className="row mb-4">
+                      <div className="col-12">
+                        <div className="card border-0 shadow-sm">
+                          <div className="card-body p-4">
+                            <div className="d-flex justify-content-between align-items-center mb-3">
+                              <h5 className="card-title mb-0">
+                                {selectedEventForDemographics.title ||
+                                  "Untitled Event"}
+                              </h5>
+                              <span
+                                className={`badge ${
+                                  (selectedEventForDemographics.status ||
+                                    "Upcoming") === "Upcoming"
+                                    ? "bg-primary"
+                                    : (selectedEventForDemographics.status ||
+                                        "Upcoming") === "Ongoing"
+                                    ? "bg-success"
+                                    : (selectedEventForDemographics.status ||
+                                        "Upcoming") === "Completed"
+                                    ? "bg-secondary"
+                                    : "bg-danger"
+                                }`}
+                              >
+                                {selectedEventForDemographics.status ||
+                                  "Upcoming"}
+                              </span>
+                            </div>
+                            <div className="row g-4">
+                              <div className="col-md-3">
+                                <div className="d-flex align-items-center">
+                                  <div className="bg-primary bg-opacity-10 rounded-circle p-2 me-3">
+                                    <i className="bi bi-calendar-date text-primary"></i>
+                                  </div>
+                                  <div>
+                                    <small className="text-muted d-block">
+                                      Date
+                                    </small>
+                                    <strong>
+                                      {(selectedEventForDemographics.startDate ||
+                                        "") ===
+                                      (selectedEventForDemographics.endDate ||
+                                        "")
+                                        ? new Date(
+                                            selectedEventForDemographics.startDate ||
+                                              new Date()
+                                          ).toLocaleDateString()
+                                        : `${new Date(
+                                            selectedEventForDemographics.startDate ||
+                                              new Date()
+                                          ).toLocaleDateString()} - 
+                                          ${new Date(
+                                            selectedEventForDemographics.endDate ||
+                                              new Date()
+                                          ).toLocaleDateString()}`}
+                                    </strong>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="col-md-3">
+                                <div className="d-flex align-items-center">
+                                  <div className="bg-success bg-opacity-10 rounded-circle p-2 me-3">
+                                    <i className="bi bi-geo-alt text-success"></i>
+                                  </div>
+                                  <div>
+                                    <small className="text-muted d-block">
+                                      Location
+                                    </small>
+                                    <strong>
+                                      {selectedEventForDemographics.location ||
+                                        "No location specified"}
+                                    </strong>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="col-md-3">
+                                <div className="d-flex align-items-center">
+                                  <div className="bg-info bg-opacity-10 rounded-circle p-2 me-3">
+                                    <i className="bi bi-tag text-info"></i>
+                                  </div>
+                                  <div>
+                                    <small className="text-muted d-block">
+                                      Category
+                                    </small>
+                                    <strong>
+                                      {selectedEventForDemographics.category ||
+                                        "Uncategorized"}
+                                    </strong>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="col-md-3">
+                                <div className="d-flex align-items-center">
+                                  <div className="bg-warning bg-opacity-10 rounded-circle p-2 me-3">
+                                    <i className="bi bi-person text-warning"></i>
+                                  </div>
+                                  <div>
+                                    <small className="text-muted d-block">
+                                      Organizer
+                                    </small>
+                                    <strong>
+                                      {selectedEventForDemographics.organizer ||
+                                        "Not specified"}
+                                    </strong>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="row mb-4">
+                      <div className="col-12">
+                        <div className="card border-0 shadow-sm">
+                          <div className="card-body p-4">
+                            <h6 className="card-title mb-3">
+                              Participation Overview
+                            </h6>
+                            <div className="d-flex align-items-center mb-3">
+                              <div
+                                className="progress flex-grow-1 me-3"
+                                style={{ height: "16px" }}
+                              >
+                                <div
+                                  className="progress-bar bg-success"
+                                  style={{
+                                    width: `${
+                                      (selectedEventForDemographics.expectedParticipants ||
+                                        0) > 0
+                                        ? ((selectedEventForDemographics.actualParticipants ||
+                                            0) /
+                                            (selectedEventForDemographics.expectedParticipants ||
+                                              1)) *
+                                          100
+                                        : 0
+                                    }%`,
+                                  }}
+                                ></div>
+                              </div>
+                              <div className="text-success fw-bold fs-4">
+                                {(selectedEventForDemographics.expectedParticipants ||
+                                  0) > 0
+                                  ? (
+                                      ((selectedEventForDemographics.actualParticipants ||
+                                        0) /
+                                        (selectedEventForDemographics.expectedParticipants ||
+                                          1)) *
+                                      100
+                                    ).toFixed(1)
+                                  : 0}
+                                %
+                              </div>
+                            </div>
+                            <div className="row text-center">
+                              <div className="col-6">
+                                <div className="p-3 bg-light rounded">
+                                  <div className="small text-muted mb-1">
+                                    Actual Participants
+                                  </div>
+                                  <div className="fw-bold fs-4">
+                                    {selectedEventForDemographics.actualParticipants ||
+                                      0}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="col-6">
+                                <div className="p-3 bg-light rounded">
+                                  <div className="small text-muted mb-1">
+                                    Expected Participants
+                                  </div>
+                                  <div className="fw-bold fs-4">
+                                    {selectedEventForDemographics.expectedParticipants ||
+                                      0}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="row mb-4">
+                      <div className="col-12">
+                        <div className="card border-0 shadow-sm">
+                          <div className="card-header bg-white">
+                            <h5 className="card-title mb-0">
+                              Demographics Analysis
+                            </h5>
+                          </div>
+                          <div className="card-body p-4">
+                            <ChartWrapper>
+                              <div className="row g-4">
+                                <div className="col-lg-6">
+                                  <DepartmentChart
+                                    participants={
+                                      selectedEventForDemographics.actualParticipants ||
+                                      0
+                                    }
+                                    category={
+                                      selectedEventForDemographics.category ||
+                                      "General"
+                                    }
+                                    key={`dept-chart-${
+                                      selectedEventForDemographics.id ||
+                                      "unknown"
+                                    }`}
+                                  />
+                                </div>
+
+                                <div className="col-lg-6">
+                                  <TimelineChart
+                                    actualParticipants={
+                                      selectedEventForDemographics.actualParticipants ||
+                                      0
+                                    }
+                                    expectedParticipants={
+                                      selectedEventForDemographics.expectedParticipants ||
+                                      0
+                                    }
+                                    startDate={
+                                      selectedEventForDemographics.startDate ||
+                                      new Date().toISOString()
+                                    }
+                                    status={
+                                      selectedEventForDemographics.status ||
+                                      "Upcoming"
+                                    }
+                                    key={`timeline-chart-${
+                                      selectedEventForDemographics.id ||
+                                      "unknown"
+                                    }`}
+                                  />
+                                </div>
+
+                                <div className="col-lg-6">
+                                  <RoleChart
+                                    actualParticipants={
+                                      selectedEventForDemographics.actualParticipants ||
+                                      0
+                                    }
+                                    expectedParticipants={
+                                      selectedEventForDemographics.expectedParticipants ||
+                                      0
+                                    }
+                                    key={`role-chart-${
+                                      selectedEventForDemographics.id ||
+                                      "unknown"
+                                    }`}
+                                  />
+                                </div>
+
+                                <div className="col-lg-6">
+                                  <FeedbackChart
+                                    successRate={
+                                      selectedEventForDemographics.successRate ||
+                                      0
+                                    }
+                                    status={
+                                      selectedEventForDemographics.status ||
+                                      "Upcoming"
+                                    }
+                                    key={`feedback-chart-${
+                                      selectedEventForDemographics.id ||
+                                      "unknown"
+                                    }`}
+                                  />
+                                </div>
+                              </div>
+                            </ChartWrapper>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="row">
+                      <div className="col-12">
+                        <div className="card border-0 shadow-sm">
+                          <div className="card-header bg-white">
+                            <h5 className="card-title mb-0">
+                              Key Event Metrics
+                            </h5>
+                          </div>
+                          <div className="card-body p-4">
+                            <div className="row row-cols-1 row-cols-md-4 g-4">
+                              <div className="col">
+                                <div className="p-3 bg-light rounded">
+                                  <div className="small text-muted mb-1">
+                                    Time
+                                  </div>
+                                  <div className="fw-bold">
+                                    {selectedEventForDemographics.startTime ||
+                                      "--:--"}{" "}
+                                    -{" "}
+                                    {selectedEventForDemographics.endTime ||
+                                      "--:--"}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="col">
+                                <div className="p-3 bg-light rounded">
+                                  <div className="small text-muted mb-1">
+                                    Success Rate
+                                  </div>
+                                  <div className="fw-bold text-success">
+                                    {selectedEventForDemographics.successRate ||
+                                      0}
+                                    %
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="col">
+                                <div className="p-3 bg-light rounded">
+                                  <div className="small text-muted mb-1">
+                                    Partnerships
+                                  </div>
+                                  <div className="fw-bold text-truncate">
+                                    {selectedEventForDemographics.partnership ||
+                                      "None"}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="col">
+                                <div className="p-3 bg-light rounded">
+                                  <div className="small text-muted mb-1">
+                                    Created By
+                                  </div>
+                                  <div className="fw-bold text-truncate">
+                                    {selectedEventForDemographics.createdBy ||
+                                      "Unknown"}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-primary px-4"
+                    onClick={() => {
+                      setShowDemographicsModal(false);
+                      setSelectedEventForDemographics(null);
+                    }}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     );
