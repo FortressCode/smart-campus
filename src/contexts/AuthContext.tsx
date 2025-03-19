@@ -15,6 +15,9 @@ import {
   UserCredential,
   sendEmailVerification,
   fetchSignInMethodsForEmail,
+  setPersistence,
+  browserSessionPersistence,
+  browserLocalPersistence,
 } from "firebase/auth";
 import {
   doc,
@@ -26,11 +29,17 @@ import {
   query,
   where,
   getDocs,
+  updateDoc,
 } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
 // Global variable to ensure admin setup runs only once per app lifecycle
 let adminSetupComplete = false;
+
+// Default session timeout in minutes
+const DEFAULT_SESSION_TIMEOUT = 30;
+const SESSION_TIMEOUT_KEY = "session_timeout_minutes";
+const LAST_ACTIVITY_KEY = "last_activity_timestamp";
 
 interface AuthContextProps {
   currentUser: User | null;
@@ -51,6 +60,13 @@ interface AuthContextProps {
   logout: () => Promise<void>;
   loading: boolean;
   sendVerificationEmail: (user: User) => Promise<void>;
+  setSessionTimeout: (minutes: number) => Promise<void>;
+  getSessionTimeout: () => Promise<number>;
+  updateSecuritySettings: (
+    enableTwoFactor: boolean,
+    enforceStrongPassword: boolean,
+    sessionTimeoutMinutes: number
+  ) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
@@ -67,11 +83,180 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [inactivityTimer, setInactivityTimer] = useState<NodeJS.Timeout | null>(null);
 
   // Function to send verification email
   async function sendVerificationEmail(user: User) {
     return sendEmailVerification(user);
   }
+
+  // Function to set the session timeout in minutes
+  async function setSessionTimeout(minutes: number) {
+    try {
+      if (!minutes || minutes < 1) {
+        minutes = DEFAULT_SESSION_TIMEOUT;
+      }
+      localStorage.setItem(SESSION_TIMEOUT_KEY, minutes.toString());
+      
+      // If the user is an admin, store this setting in Firestore as well
+      if (currentUser && userData?.role === 'admin') {
+        const securitySettingsRef = doc(db, "settings", "security");
+        await setDoc(securitySettingsRef, 
+          { sessionTimeoutMinutes: minutes }, 
+          { merge: true }
+        );
+      }
+      
+      // Reset the inactivity timer with the new timeout
+      resetInactivityTimer();
+    } catch (error) {
+      console.error("Error setting session timeout:", error);
+    }
+  }
+
+  // Function to get the current session timeout setting
+  async function getSessionTimeout() {
+    try {
+      // Try to get from Firestore first
+      const securitySettingsRef = doc(db, "settings", "security");
+      const securitySettings = await getDoc(securitySettingsRef);
+      
+      if (securitySettings.exists() && securitySettings.data().sessionTimeoutMinutes) {
+        return securitySettings.data().sessionTimeoutMinutes;
+      }
+      
+      // Fall back to localStorage
+      const timeout = localStorage.getItem(SESSION_TIMEOUT_KEY);
+      return timeout ? parseInt(timeout) : DEFAULT_SESSION_TIMEOUT;
+    } catch (error) {
+      console.error("Error getting session timeout:", error);
+      return DEFAULT_SESSION_TIMEOUT;
+    }
+  }
+
+  // Function to update all security settings at once
+  async function updateSecuritySettings(
+    enableTwoFactor: boolean,
+    enforceStrongPassword: boolean,
+    sessionTimeoutMinutes: number
+  ) {
+    try {
+      const securitySettingsRef = doc(db, "settings", "security");
+      await setDoc(securitySettingsRef, {
+        enableTwoFactor,
+        enforceStrongPassword,
+        sessionTimeoutMinutes,
+        updatedAt: serverTimestamp(),
+        updatedBy: currentUser?.uid || "system"
+      }, { merge: true });
+      
+      // Update the session timeout in localStorage
+      await setSessionTimeout(sessionTimeoutMinutes);
+      
+      // Update last activity timestamp to reset the timer
+      updateLastActivity();
+      
+      // Force check to apply the new timeout immediately
+      setTimeout(() => {
+        checkInactivity();
+      }, 1000);
+    } catch (error) {
+      console.error("Error updating security settings:", error);
+      throw error;
+    }
+  }
+
+  // Update last activity timestamp
+  function updateLastActivity() {
+    localStorage.setItem(LAST_ACTIVITY_KEY, Date.now().toString());
+  }
+
+  // Check for inactivity and log out if necessary
+  function checkInactivity() {
+    const lastActivity = localStorage.getItem(LAST_ACTIVITY_KEY);
+    if (!lastActivity) {
+      updateLastActivity();
+      return;
+    }
+
+    getSessionTimeout().then(timeoutMinutes => {
+      const lastActivityTime = parseInt(lastActivity);
+      const currentTime = Date.now();
+      const inactiveTime = currentTime - lastActivityTime;
+      const timeoutMilliseconds = timeoutMinutes * 60 * 1000;
+
+      console.log(`Inactive for ${Math.floor(inactiveTime/1000)} seconds. Timeout set to ${timeoutMinutes} minutes (${timeoutMilliseconds/1000} seconds)`);
+      
+      if (inactiveTime > timeoutMilliseconds) {
+        // User has been inactive for too long, log them out
+        console.log(`Logging out due to inactivity (${timeoutMinutes} min timeout)`);
+        logout();
+      }
+    });
+  }
+
+  // Reset the inactivity timer
+  function resetInactivityTimer() {
+    // Clear any existing timer
+    if (inactivityTimer) {
+      clearInterval(inactivityTimer);
+    }
+
+    // Set up a new timer to check inactivity more frequently (every 10 seconds instead of every minute)
+    const timer = setInterval(checkInactivity, 10 * 1000);
+    setInactivityTimer(timer);
+  }
+
+  // Setup activity tracking
+  useEffect(() => {
+    if (currentUser) {
+      // Set up activity listeners for more events to ensure better tracking
+      const activityEvents = [
+        'mousedown', 'keydown', 'touchstart', 'scroll', 
+        'mousemove', 'click', 'focus', 'blur'
+      ];
+      
+      const handleActivity = () => {
+        updateLastActivity();
+      };
+      
+      // Add event listeners
+      activityEvents.forEach(event => {
+        window.addEventListener(event, handleActivity);
+      });
+
+      // Initialize the inactivity timer
+      resetInactivityTimer();
+      
+      // Initial activity update
+      updateLastActivity();
+      
+      // Set session persistence based on role
+      getSessionTimeout().then(timeout => {
+        if (userData?.role === 'admin') {
+          // For admins, use the configured session timeout
+          setPersistence(auth, browserSessionPersistence)
+            .catch(error => console.error("Error setting persistence:", error));
+        }
+      });
+      
+      // Check inactivity immediately
+      checkInactivity();
+      
+      // Cleanup function
+      return () => {
+        // Remove event listeners
+        activityEvents.forEach(event => {
+          window.removeEventListener(event, handleActivity);
+        });
+        
+        // Clear the inactivity timer
+        if (inactivityTimer) {
+          clearInterval(inactivityTimer);
+        }
+      };
+    }
+  }, [currentUser, userData]);
 
   async function signup(
     email: string,
@@ -327,6 +512,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout,
     loading,
     sendVerificationEmail,
+    setSessionTimeout,
+    getSessionTimeout,
+    updateSecuritySettings,
   };
 
   return (
