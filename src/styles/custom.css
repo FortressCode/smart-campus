@@ -1,0 +1,847 @@
+:root {
+  --primary-color: #4361ee;
+  --primary-dark: #3a56d4;
+  --secondary-color: #7209b7;
+  --accent-color: #f72585;
+  --light-color: #f8f9fa;
+  --dark-color: #212529;
+  --success-color: #4CAF50;
+  --warning-color: #ff9800;
+  --danger-color: #f44336;
+  --gray-100: #f8f9fa;
+  --gray-200: #e9ecef;
+  --gray-300: #dee2e6;
+  --gray-400: #ced4da;
+  --gray-500: #adb5bd;
+  --gray-600: #6c757d;
+  --gray-700: #495057;
+  --gray-800: #343a40;
+  --gray-900: #212529;
+  --sidebar-width: 280px;
+  --sidebar-collapsed-width: 70px;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+body {
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+    Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  background-color: #f5f7fb;
+}
+
+.auth-container {
+  min-height: 100vh;
+  width: 100vw;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+  padding: 0;
+  margin: 0;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.auth-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  width: 100%;
+  max-width: 450px;
+  padding: 2rem;
+  transition: all 0.3s ease;
+  margin: 2rem;
+}
+
+.auth-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.auth-header h2 {
+  color: var(--primary-color);
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.auth-form .form-control, 
+.auth-form .form-select {
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--gray-300);
+  transition: all 0.3s ease;
+}
+
+.auth-form .form-control:focus,
+.auth-form .form-select:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.15);
+}
+
+.auth-form .btn-primary {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.auth-form .btn-primary:hover {
+  background-color: var(--primary-dark);
+  border-color: var(--primary-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(67, 97, 238, 0.2);
+}
+
+.auth-form .btn-primary:active {
+  transform: translateY(0);
+}
+
+.auth-link {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.auth-link:hover {
+  color: var(--primary-dark);
+  text-decoration: underline;
+}
+
+/* Dashboard styles */
+.dashboard-container {
+  background-color: #f5f7fb;
+  min-height: 100vh;
+  width: 100vw;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow-x: hidden;
+}
+
+.dashboard-navbar {
+  background-color: white;
+  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.04);
+  width: 100%;
+  z-index: 100;
+}
+
+.dashboard-logo {
+  font-weight: 700;
+  font-size: 1.5rem;
+  background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.dashboard-content {
+  padding: 2rem 0;
+  flex: 1;
+  width: 100%;
+  overflow-y: auto;
+}
+
+.dashboard-card {
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  padding: 1.5rem;
+  height: 100%;
+  transition: all 0.3s ease;
+}
+
+.dashboard-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+/* Admin Dashboard Sidebar Styles */
+.admin-layout {
+  display: flex;
+  min-height: 100vh;
+  position: relative;
+}
+
+.admin-sidebar {
+  width: var(--sidebar-width);
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  background-color: white;
+  border-right: 1px solid var(--gray-200);
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  z-index: 99;
+  overflow: hidden;
+}
+
+.admin-sidebar-collapsed {
+  width: var(--sidebar-collapsed-width);
+}
+
+/* Hover expand functionality */
+.admin-sidebar-collapsed:hover {
+  width: var(--sidebar-width);
+  box-shadow: 5px 0 25px rgba(0, 0, 0, 0.1);
+}
+
+/* Header styling */
+.admin-sidebar-header {
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--gray-200);
+  height: 80px;
+  position: relative;
+}
+
+/* Logo container */
+.admin-logo-container {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  transition: opacity 0.2s ease;
+}
+
+.admin-logo-text {
+  font-weight: 700;
+  font-size: 1.5rem;
+  background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  margin-left: 10px;
+}
+
+.admin-logo-image {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  transition: all 0.3s ease;
+}
+
+/* Hide only the text when collapsed, keep logo */
+.admin-sidebar-collapsed .admin-logo-text {
+  display: none;
+}
+
+/* Hide menu item text when collapsed */
+.admin-sidebar-collapsed .admin-menu-item span,
+.admin-sidebar-collapsed .toggle-button-footer span,
+.admin-sidebar-collapsed .admin-sidebar-footer .admin-menu-item span {
+  display: none;
+}
+
+/* When hovering over collapsed sidebar, show both logo and text */
+.admin-sidebar-collapsed:hover .admin-logo-container {
+  justify-content: flex-start;
+  padding-left: 1.5rem;
+  display: flex;
+}
+
+.admin-sidebar-collapsed:hover .admin-logo-text {
+  display: block;
+}
+
+/* Show menu item text when hovering */
+.admin-sidebar-collapsed:hover .admin-menu-item span,
+.admin-sidebar-collapsed:hover .toggle-button-footer span,
+.admin-sidebar-collapsed:hover .admin-sidebar-footer .admin-menu-item span {
+  display: inline-block;
+}
+
+/* Make toggle button and logout have consistent styling */
+.toggle-button-footer {
+  padding: 0.8rem 1.5rem;
+  display: flex;
+  align-items: center;
+  color: var(--gray-700);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 0.5rem;
+  border-left: 3px solid transparent;
+  justify-content: flex-start;
+  width: 100%;
+}
+
+.admin-sidebar-collapsed .toggle-button-footer {
+  padding: 0.8rem 0;
+  justify-content: center;
+}
+
+.admin-sidebar-collapsed:hover .toggle-button-footer {
+  padding: 0.8rem 1.5rem;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.toggle-button-footer:hover {
+  background-color: var(--gray-100);
+  color: var(--primary-color);
+}
+
+/* Fix admin sidebar footer alignment */
+.admin-sidebar-footer {
+  padding: 1rem 0;
+  border-top: 1px solid var(--gray-200);
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  left: 0;
+}
+
+.admin-sidebar-footer .admin-menu-item {
+  padding: 0.8rem 1.5rem;
+  display: flex;
+  align-items: center;
+  color: var(--gray-700);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 0.5rem;
+  border-left: 3px solid transparent;
+  justify-content: flex-start;
+  width: 100%;
+}
+
+.admin-sidebar-collapsed .admin-sidebar-footer .admin-menu-item {
+  padding: 0.8rem 0;
+  justify-content: center;
+}
+
+.admin-sidebar-collapsed:hover .admin-sidebar-footer .admin-menu-item {
+  padding: 0.8rem 1.5rem;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+/* Ensure the icons are always aligned correctly in the footer */
+.admin-sidebar-footer .admin-menu-item i {
+  text-align: center;
+  width: 20px;
+  margin-right: 1rem;
+}
+
+.admin-sidebar-collapsed .admin-sidebar-footer .admin-menu-item i {
+  margin-right: 0;
+}
+
+.admin-sidebar-collapsed:hover .admin-sidebar-footer .admin-menu-item i {
+  margin-right: 1rem;
+}
+
+/* Sidebar sections */
+.admin-sidebar-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem 0;
+}
+
+/* Menu item styling */
+.admin-menu-item {
+  padding: 0.8rem 1.5rem;
+  display: flex;
+  align-items: center;
+  color: var(--gray-700);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-left: 3px solid transparent;
+}
+
+/* Icon styling */
+.admin-menu-item i,
+.toggle-button-footer i {
+  font-size: 1.2rem;
+  margin-right: 1rem;
+  width: 20px;
+  text-align: center;
+}
+
+.admin-menu-item span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Active state */
+.admin-menu-item.active {
+  background-color: rgba(67, 97, 238, 0.05);
+  color: var(--primary-color);
+  border-left: 3px solid var(--primary-color);
+}
+
+/* Hover state for all menu items */
+.admin-menu-item:hover,
+.toggle-button-footer:hover,
+.admin-sidebar-footer .admin-menu-item:hover {
+  background-color: var(--gray-100);
+  color: var(--primary-color);
+}
+
+/* Collapsed state styling */
+.admin-sidebar-collapsed .admin-menu-item,
+.admin-sidebar-collapsed .toggle-button-footer,
+.admin-sidebar-collapsed .admin-sidebar-footer .admin-menu-item {
+  padding: 0.8rem 0;
+  justify-content: center;
+  width: 100%;
+}
+
+.admin-sidebar-collapsed .admin-menu-item i,
+.admin-sidebar-collapsed .toggle-button-footer i,
+.admin-sidebar-collapsed .admin-sidebar-footer .admin-menu-item i {
+  margin-right: 0;
+}
+
+/* Hover state for collapsed sidebar */
+.admin-sidebar-collapsed:hover .admin-menu-item,
+.admin-sidebar-collapsed:hover .toggle-button-footer,
+.admin-sidebar-collapsed:hover .admin-sidebar-footer .admin-menu-item {
+  padding: 0.8rem 1.5rem;
+  justify-content: flex-start;
+}
+
+.admin-sidebar-collapsed:hover .admin-menu-item i,
+.admin-sidebar-collapsed:hover .toggle-button-footer i,
+.admin-sidebar-collapsed:hover .admin-sidebar-footer .admin-menu-item i {
+  margin-right: 1rem;
+}
+
+.admin-content {
+  flex: 1;
+  margin-left: var(--sidebar-width);
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  padding: 2rem;
+  width: calc(100% - var(--sidebar-width));
+  max-width: 100%;
+}
+
+.admin-content-expanded {
+  margin-left: var(--sidebar-collapsed-width);
+  width: calc(100% - var(--sidebar-collapsed-width));
+}
+
+.content-container {
+  width: 100%;
+  margin: 0 auto;
+  max-width: 1400px;
+  min-height: calc(100vh - 150px);
+  display: flex;
+  flex-direction: column;
+}
+
+.section-content {
+  width: 100%;
+  flex: 1;
+}
+
+.section-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  color: var(--gray-800);
+  display: flex;
+  align-items: center;
+}
+
+.section-title i {
+  margin-right: 0.5rem;
+  color: var(--primary-color);
+}
+
+.toggle-sidebar {
+  background: none;
+  border: none;
+  color: var(--gray-600);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.toggle-sidebar:hover {
+  background-color: var(--gray-100);
+  color: var(--primary-color);
+}
+
+/* Fixed toggle button for collapsed sidebar */
+.toggle-sidebar-fixed {
+  position: fixed;
+  left: calc(var(--sidebar-collapsed-width) - 16px);
+  top: 80px;
+  z-index: 999;
+  width: 32px;
+  height: 32px;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toggle-sidebar-fixed:hover {
+  background-color: var(--primary-dark);
+  transform: scale(1.1);
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.25);
+}
+
+@media (max-width: 992px) {
+  .admin-sidebar {
+    transform: translateX(-100%);
+  }
+  
+  .admin-sidebar-visible {
+    transform: translateX(0);
+  }
+  
+  .admin-content {
+    margin-left: 0;
+    width: 100%;
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-content {
+    padding: 1rem;
+  }
+}
+
+.profile-card {
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.profile-header {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+  color: white;
+  padding: 1.5rem;
+}
+
+.profile-body {
+  padding: 2rem;
+}
+
+.profile-field {
+  margin-bottom: 1.5rem;
+}
+
+.profile-field label {
+  display: block;
+  color: var(--gray-600);
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
+}
+
+.profile-field p {
+  font-weight: 500;
+  color: var(--dark-color);
+  font-size: 1rem;
+  margin-bottom: 0;
+}
+
+.btn-continue {
+  background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+  border: none;
+  color: white;
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+.btn-continue:hover {
+  box-shadow: 0 6px 15px rgba(67, 97, 238, 0.3);
+  transform: translateY(-2px);
+}
+
+.btn-continue:active {
+  transform: translateY(0);
+}
+
+/* Container adjustments for better centering */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-left: 15px;
+  padding-right: 15px;
+}
+
+/* Animation classes */
+.fade-in {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dashboard-navbar .container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 70px;
+}
+
+.slide-in {
+  width: 100%;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .auth-card {
+    padding: 1.5rem;
+    margin: 1rem;
+  }
+  
+  .profile-body {
+    padding: 1.5rem;
+  }
+  
+  .container {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+  
+  .row > div[class^="col-"] {
+    margin-bottom: 1rem;
+  }
+}
+
+@media (min-width: 992px) {
+  .dashboard-content .container,
+  .dashboard-navbar .container {
+    padding-left: 30px;
+    padding-right: 30px;
+  }
+}
+
+/* Spinner */
+.spinner-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 0;
+  width: 100%;
+}
+
+.spinner-primary {
+  color: var(--primary-color);
+}
+
+/* Content adjustments to ensure proper centering and fullwidth */
+.content-container {
+  width: 100%;
+  margin: 0 auto;
+  max-width: 1400px;
+  min-height: calc(100vh - 150px);
+  display: flex;
+  flex-direction: column;
+}
+
+.section-content {
+  width: 100%;
+  flex: 1;
+}
+
+/* Ensure cards take full width in their containers */
+.dashboard-card {
+  width: 100%;
+  height: 100%;
+}
+
+/* Ensure proper row spacing */
+.row {
+  width: 100%;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+/* Adjust table responsiveness */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* Fix column spacing */
+.row > [class^="col-"] {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+@media (min-width: 992px) {
+  .row > [class^="col-"] {
+    padding-left: 15px;
+    padding-right: 15px;
+  }
+}
+
+/* Improve transitions for menu items */
+.admin-menu-item,
+.toggle-button-footer {
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.admin-menu-item span,
+.toggle-button-footer span {
+  transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease;
+}
+
+.admin-sidebar-collapsed .admin-menu-item span,
+.admin-sidebar-collapsed .toggle-button-footer span {
+  opacity: 0;
+  transform: translateX(-10px);
+  visibility: hidden;
+}
+
+.admin-sidebar-collapsed:hover .admin-menu-item span,
+.admin-sidebar-collapsed:hover .toggle-button-footer span {
+  opacity: 1;
+  transform: translateX(0);
+  visibility: visible;
+}
+
+/* Improve animations */
+.admin-sidebar, 
+.admin-content,
+.admin-menu-item,
+.toggle-button-footer,
+.admin-logo-text,
+.admin-logo-container {
+  transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.admin-sidebar-footer .admin-menu-item:hover {
+  background-color: var(--gray-100);
+  color: var(--primary-color);
+}
+
+/* Special styling for logout button to ensure left alignment */
+.logout-button {
+  justify-content: flex-start !important;
+  text-align: left !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.logout-button i {
+  margin-right: 1rem !important;
+}
+
+.admin-sidebar-collapsed .logout-button {
+  justify-content: center !important;
+}
+
+.admin-sidebar-collapsed .logout-button i {
+  margin-right: 0 !important;
+}
+
+.admin-sidebar-collapsed:hover .logout-button {
+  justify-content: flex-start !important;
+  padding-left: 1.5rem !important;
+}
+
+.admin-sidebar-collapsed:hover .logout-button i {
+  margin-right: 1rem !important;
+}
+
+/* Calendar styles */
+.calendar-grid {
+  width: 100%;
+}
+
+.calendar-day {
+  min-height: 120px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+}
+
+.calendar-event {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.calendar-event:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* Schedule table styles */
+.table th {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.table td {
+  vertical-align: middle;
+}
+
+/* Schedule form styles */
+.form-switch .form-check-input:checked {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+/* Toggle view buttons */
+.btn-group .btn {
+  border-radius: 4px;
+}
+
+.btn-group .btn:first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.btn-group .btn:last-child {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+} 
