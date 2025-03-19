@@ -67,6 +67,12 @@ interface AuthContextProps {
     enforceStrongPassword: boolean,
     sessionTimeoutMinutes: number
   ) => Promise<void>;
+  updateUserProfile: (
+    name: string,
+    phone: string,
+    faculty: string,
+    department: string
+  ) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
@@ -83,7 +89,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [inactivityTimer, setInactivityTimer] = useState<NodeJS.Timeout | null>(null);
+  const [inactivityTimer, setInactivityTimer] = useState<NodeJS.Timeout | null>(
+    null
+  );
 
   // Function to send verification email
   async function sendVerificationEmail(user: User) {
@@ -97,16 +105,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         minutes = DEFAULT_SESSION_TIMEOUT;
       }
       localStorage.setItem(SESSION_TIMEOUT_KEY, minutes.toString());
-      
+
       // If the user is an admin, store this setting in Firestore as well
-      if (currentUser && userData?.role === 'admin') {
+      if (currentUser && userData?.role === "admin") {
         const securitySettingsRef = doc(db, "settings", "security");
-        await setDoc(securitySettingsRef, 
-          { sessionTimeoutMinutes: minutes }, 
+        await setDoc(
+          securitySettingsRef,
+          { sessionTimeoutMinutes: minutes },
           { merge: true }
         );
       }
-      
+
       // Reset the inactivity timer with the new timeout
       resetInactivityTimer();
     } catch (error) {
@@ -120,11 +129,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Try to get from Firestore first
       const securitySettingsRef = doc(db, "settings", "security");
       const securitySettings = await getDoc(securitySettingsRef);
-      
-      if (securitySettings.exists() && securitySettings.data().sessionTimeoutMinutes) {
+
+      if (
+        securitySettings.exists() &&
+        securitySettings.data().sessionTimeoutMinutes
+      ) {
         return securitySettings.data().sessionTimeoutMinutes;
       }
-      
+
       // Fall back to localStorage
       const timeout = localStorage.getItem(SESSION_TIMEOUT_KEY);
       return timeout ? parseInt(timeout) : DEFAULT_SESSION_TIMEOUT;
@@ -142,20 +154,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   ) {
     try {
       const securitySettingsRef = doc(db, "settings", "security");
-      await setDoc(securitySettingsRef, {
-        enableTwoFactor,
-        enforceStrongPassword,
-        sessionTimeoutMinutes,
-        updatedAt: serverTimestamp(),
-        updatedBy: currentUser?.uid || "system"
-      }, { merge: true });
-      
+      await setDoc(
+        securitySettingsRef,
+        {
+          enableTwoFactor,
+          enforceStrongPassword,
+          sessionTimeoutMinutes,
+          updatedAt: serverTimestamp(),
+          updatedBy: currentUser?.uid || "system",
+        },
+        { merge: true }
+      );
+
       // Update the session timeout in localStorage
       await setSessionTimeout(sessionTimeoutMinutes);
-      
+
       // Update last activity timestamp to reset the timer
       updateLastActivity();
-      
+
       // Force check to apply the new timeout immediately
       setTimeout(() => {
         checkInactivity();
@@ -179,17 +195,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    getSessionTimeout().then(timeoutMinutes => {
+    getSessionTimeout().then((timeoutMinutes) => {
       const lastActivityTime = parseInt(lastActivity);
       const currentTime = Date.now();
       const inactiveTime = currentTime - lastActivityTime;
       const timeoutMilliseconds = timeoutMinutes * 60 * 1000;
 
-      console.log(`Inactive for ${Math.floor(inactiveTime/1000)} seconds. Timeout set to ${timeoutMinutes} minutes (${timeoutMilliseconds/1000} seconds)`);
-      
+      console.log(
+        `Inactive for ${Math.floor(
+          inactiveTime / 1000
+        )} seconds. Timeout set to ${timeoutMinutes} minutes (${
+          timeoutMilliseconds / 1000
+        } seconds)`
+      );
+
       if (inactiveTime > timeoutMilliseconds) {
         // User has been inactive for too long, log them out
-        console.log(`Logging out due to inactivity (${timeoutMinutes} min timeout)`);
+        console.log(
+          `Logging out due to inactivity (${timeoutMinutes} min timeout)`
+        );
         logout();
       }
     });
@@ -212,44 +236,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (currentUser) {
       // Set up activity listeners for more events to ensure better tracking
       const activityEvents = [
-        'mousedown', 'keydown', 'touchstart', 'scroll', 
-        'mousemove', 'click', 'focus', 'blur'
+        "mousedown",
+        "keydown",
+        "touchstart",
+        "scroll",
+        "mousemove",
+        "click",
+        "focus",
+        "blur",
       ];
-      
+
       const handleActivity = () => {
         updateLastActivity();
       };
-      
+
       // Add event listeners
-      activityEvents.forEach(event => {
+      activityEvents.forEach((event) => {
         window.addEventListener(event, handleActivity);
       });
 
       // Initialize the inactivity timer
       resetInactivityTimer();
-      
+
       // Initial activity update
       updateLastActivity();
-      
+
       // Set session persistence based on role
-      getSessionTimeout().then(timeout => {
-        if (userData?.role === 'admin') {
+      getSessionTimeout().then((timeout) => {
+        if (userData?.role === "admin") {
           // For admins, use the configured session timeout
-          setPersistence(auth, browserSessionPersistence)
-            .catch(error => console.error("Error setting persistence:", error));
+          setPersistence(auth, browserSessionPersistence).catch((error) =>
+            console.error("Error setting persistence:", error)
+          );
         }
       });
-      
+
       // Check inactivity immediately
       checkInactivity();
-      
+
       // Cleanup function
       return () => {
         // Remove event listeners
-        activityEvents.forEach(event => {
+        activityEvents.forEach((event) => {
           window.removeEventListener(event, handleActivity);
         });
-        
+
         // Clear the inactivity timer
         if (inactivityTimer) {
           clearInterval(inactivityTimer);
@@ -291,7 +322,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return userCredential;
   }
-  
+
   // Function for admins to create users without affecting their current session
   async function adminCreateUser(
     email: string,
@@ -301,26 +332,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   ) {
     try {
       // Create the user in Firebase Auth using a separate connection
-      const response = await fetch('https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=AIzaSyABNDrseHZo8Lgt-uwAfzMRZNwQefCHQwY', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          password,
-          returnSecureToken: true,
-        }),
-      });
-      
+      const response = await fetch(
+        "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=AIzaSyABNDrseHZo8Lgt-uwAfzMRZNwQefCHQwY",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email,
+            password,
+            returnSecureToken: true,
+          }),
+        }
+      );
+
       const data = await response.json();
-      
+
       if (!response.ok) {
-        throw new Error(data.error?.message || 'Failed to create user');
+        throw new Error(data.error?.message || "Failed to create user");
       }
-      
+
       const uid = data.localId;
-      
+
       // Now create user document in Firestore
       await setDoc(doc(db, "users", uid), {
         name,
@@ -328,15 +362,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role,
         emailVerified: false,
         createdAt: serverTimestamp(),
-        createdBy: currentUser?.uid || 'system',
+        createdBy: currentUser?.uid || "system",
       });
-      
+
       return { success: true, uid };
     } catch (error: any) {
       console.error("Error creating user:", error);
-      return { 
-        success: false, 
-        error: error.message || 'Failed to create user'
+      return {
+        success: false,
+        error: error.message || "Failed to create user",
       };
     }
   }
@@ -503,6 +537,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return unsubscribe;
   }, [currentUser]);
 
+  // Function to update user profile
+  async function updateUserProfile(
+    name: string,
+    phone: string,
+    faculty: string,
+    department: string
+  ) {
+    if (!currentUser) {
+      throw new Error("User must be logged in to update profile");
+    }
+
+    try {
+      const userDocRef = doc(db, "users", currentUser.uid);
+
+      // Update display name in Firebase Auth
+      await updateProfile(currentUser, {
+        displayName: name,
+      });
+
+      // Update user data in Firestore
+      await updateDoc(userDocRef, {
+        name,
+        phone,
+        faculty,
+        department,
+        updatedAt: serverTimestamp(),
+      });
+
+      // Update local state
+      if (userData) {
+        setUserData({
+          ...userData,
+          name,
+          phone,
+          faculty,
+          department,
+        });
+      }
+    } catch (error) {
+      console.error("Error updating user profile:", error);
+      throw error;
+    }
+  }
+
   const value = {
     currentUser,
     userData,
@@ -515,6 +593,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSessionTimeout,
     getSessionTimeout,
     updateSecuritySettings,
+    updateUserProfile,
   };
 
   return (
