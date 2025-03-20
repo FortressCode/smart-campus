@@ -257,39 +257,37 @@ const AutomatedNotification: React.FC = () => {
 
   // Format date for comparison (YYYY-MM-DD)
   const formatDateForComparison = (dateString: string): string => {
-    try {
-      const [year, month, day] = dateString.split("-");
-      return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-    } catch (error) {
-      return dateString;
-    }
+    if (!dateString) return "";
+    // Standardize dateString to YYYY-MM-DD format
+    const parts = dateString.split(/[-/]/);
+    if (parts.length < 3) return "";
+    return `${parts[0]}-${parts[1].padStart(2, "0")}-${parts[2].padStart(
+      2,
+      "0"
+    )}`;
   };
 
   // Check if a date is today or tomorrow
   const isDateSoonOrToday = (
     dateString: string
   ): { isSoon: boolean; isToday: boolean } => {
-    try {
-      const today = new Date();
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      const formattedToday = formatDateForComparison(
-        today.toISOString().split("T")[0]
-      );
-      const formattedTomorrow = formatDateForComparison(
-        tomorrow.toISOString().split("T")[0]
-      );
-      const formattedDate = formatDateForComparison(dateString);
-
-      return {
-        isSoon: formattedDate === formattedTomorrow,
-        isToday: formattedDate === formattedToday,
-      };
-    } catch (error) {
-      console.error("Date parsing error:", error);
+    const formattedDate = formatDateForComparison(dateString);
+    if (!formattedDate) {
       return { isSoon: false, isToday: false };
     }
+
+    const today = new Date();
+    const todayFormatted = today.toISOString().split("T")[0];
+
+    // Create a date for tomorrow
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowFormatted = tomorrow.toISOString().split("T")[0];
+
+    return {
+      isToday: formattedDate === todayFormatted,
+      isSoon: formattedDate === tomorrowFormatted,
+    };
   };
 
   // Listen for upcoming events and notify
@@ -374,7 +372,7 @@ const AutomatedNotification: React.FC = () => {
     return () => {
       unsubscribeEvents();
     };
-  }, [currentUser, userData, showNotification, notificationStore]);
+  }, [currentUser, userData, showNotification, notificationStore, loading]);
 
   // Listen for schedules relevant to the user's role
   useEffect(() => {
@@ -530,7 +528,7 @@ const AutomatedNotification: React.FC = () => {
             } as Schedule)
         );
 
-        // Check for today's and tomorrow's schedules
+        // Process the schedules
         schedules.forEach((schedule) => {
           const { isSoon, isToday } = isDateSoonOrToday(schedule.date);
           const notificationId = `schedule-${schedule.id}-${schedule.date}`;
@@ -585,7 +583,7 @@ const AutomatedNotification: React.FC = () => {
                 ) {
                   const timeFrame = isToday ? "today" : "tomorrow";
                   showNotification(
-                    `Schedule update ${timeFrame}: ${schedule.moduleTitle} at ${schedule.startTime} in Room ${schedule.classroomNumber}`
+                    `Schedule update for ${timeFrame}: ${schedule.moduleTitle} at ${schedule.startTime} in Room ${schedule.classroomNumber}`
                   );
                 }
               } else if (change.type === "removed") {
@@ -653,7 +651,7 @@ const AutomatedNotification: React.FC = () => {
     return () => {
       unsubscribeSchedules();
     };
-  }, [currentUser, userData, showNotification, notificationStore]);
+  }, [currentUser, userData, showNotification, notificationStore, loading]);
 
   // Listen for course changes (especially for students and teachers)
   useEffect(() => {
@@ -707,7 +705,7 @@ const AutomatedNotification: React.FC = () => {
     return () => {
       unsubscribeCourses();
     };
-  }, [currentUser, userData, showNotification, notificationStore]);
+  }, [currentUser, userData, showNotification, notificationStore, loading]);
 
   // Empty component as this works in the background
   return null;
