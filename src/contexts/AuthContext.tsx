@@ -78,6 +78,7 @@ interface AuthContextProps {
   ) => Promise<void>;
   isStrongPasswordRequired: () => Promise<boolean>;
   validatePasswordStrength: (password: string) => { isValid: boolean; message: string };
+  getUserRole: () => string;
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
@@ -664,6 +665,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { isValid: true, message: "" };
   }
 
+  // Function to get current user's role
+  function getUserRole() {
+    return userData?.role || "guest";
+  }
+
   const value = {
     currentUser,
     userData,
@@ -679,6 +685,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     updateUserProfile,
     isStrongPasswordRequired,
     validatePasswordStrength,
+    getUserRole,
   };
 
   return (

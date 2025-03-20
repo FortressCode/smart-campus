@@ -12,8 +12,11 @@ import {
   doc,
   updateDoc,
   getDoc,
+  orderBy,
 } from "firebase/firestore";
 import { db } from "../firebase";
+import MaterialsViewer from "./MaterialsViewer";
+import ChatInterface from "./ChatInterface";
 
 // Define Schedule interface
 interface Schedule {
@@ -278,12 +281,16 @@ export default function StudentDashboard() {
     switch (activeSection) {
       case "dashboard":
         return renderDashboardSection();
-      case "classes":
-        return renderClassesSection();
+      case "schedule":
+        return renderScheduleSection();
       case "courses":
         return renderCoursesSection();
       case "materials":
         return renderMaterialsSection();
+      case "grades":
+        return renderGradesSection();
+      case "chat":
+        return renderChatSection();
       case "profile":
         return renderProfileSection();
       default:
@@ -983,6 +990,153 @@ export default function StudentDashboard() {
     </div>
   );
 
+  // Chat Section
+  const renderChatSection = () => (
+    <div className="slide-in section-content">
+      <div className="section-title mb-4">
+        <i className="bi bi-chat-dots"></i>
+        Course Chat
+      </div>
+      <div className="row">
+        <div className="col-md-12">
+          <div className="card">
+            <div className="card-body p-0">
+              <ChatInterface />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Schedule Section
+  const renderScheduleSection = () => (
+    <div className="slide-in section-content">
+      <div className="section-title mb-4">
+        <i className="bi bi-calendar3"></i>
+        Class Schedule
+      </div>
+      <div className="row">
+        <div className="col-12">
+          <div className="dashboard-card">
+            <div className="table-responsive">
+              <table className="table table-hover">
+                <thead className="table-light">
+                  <tr>
+                    <th>Course</th>
+                    <th>Day</th>
+                    <th>Time</th>
+                    <th>Location</th>
+                    <th>Lecturer</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {schedules.map((schedule, index) => (
+                    <tr key={index}>
+                      <td>{schedule.moduleTitle}</td>
+                      <td>{schedule.dayOfWeek}</td>
+                      <td>
+                        {schedule.startTime} - {schedule.endTime}
+                      </td>
+                      <td>
+                        Floor {schedule.floorNumber}, Room{" "}
+                        {schedule.classroomNumber}
+                      </td>
+                      <td>{schedule.lecturerName}</td>
+                    </tr>
+                  ))}
+                  {schedules.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="text-center py-4">
+                        {schedulesLoading ? (
+                          <div>
+                            <div
+                              className="spinner-border spinner-border-sm text-primary me-2"
+                              role="status"
+                            >
+                              <span className="visually-hidden">Loading...</span>
+                            </div>
+                            Loading schedule...
+                          </div>
+                        ) : (
+                          "No schedules found"
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Grades Section
+  const renderGradesSection = () => (
+    <div className="slide-in section-content">
+      <div className="section-title mb-4">
+        <i className="bi bi-award"></i>
+        Grades
+      </div>
+      <div className="row">
+        <div className="col-12">
+          <div className="dashboard-card">
+            <div className="table-responsive">
+              <table className="table table-hover">
+                <thead className="table-light">
+                  <tr>
+                    <th>Course</th>
+                    <th>Assignment</th>
+                    <th>Score</th>
+                    <th>Grade</th>
+                    <th>Feedback</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Introduction to Programming</td>
+                    <td>Project 1</td>
+                    <td>85/100</td>
+                    <td>B</td>
+                    <td>
+                      <button className="btn btn-sm btn-outline-primary">
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Web Development</td>
+                    <td>Midterm Exam</td>
+                    <td>92/100</td>
+                    <td>A</td>
+                    <td>
+                      <button className="btn btn-sm btn-outline-primary">
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Database Systems</td>
+                    <td>Quiz 1</td>
+                    <td>78/100</td>
+                    <td>C</td>
+                    <td>
+                      <button className="btn btn-sm btn-outline-primary">
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   // Main component render
   return (
     <div className="admin-layout">
@@ -1044,6 +1198,15 @@ export default function StudentDashboard() {
             >
               <i className="bi bi-folder"></i>
               <span>Materials</span>
+            </div>
+            <div
+              className={`admin-menu-item ${
+                activeSection === "chat" ? "active" : ""
+              }`}
+              onClick={() => setActiveSection("chat")}
+            >
+              <i className="bi bi-chat-dots"></i>
+              <span>Course Chat</span>
             </div>
             <div
               className={`admin-menu-item ${
