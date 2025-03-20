@@ -36,8 +36,29 @@ import ChartWrapper from "./ChartWrapper";
 // Add import for the new ScheduleCalendar component
 import ScheduleCalendar from "./ScheduleCalendar";
 
+// Import CourseManagement component
+import CourseManagement from "./CourseManagement";
+
 // Import the Schedule interface instead of defining it locally
 import { Schedule } from "../interfaces/Schedule";
+
+// Import EnrollmentManagement component
+import EnrollmentManagement from "./EnrollmentManagement";
+
+// Import UserManagement component
+import UserManagement from "./UserManagement";
+
+// Import ModuleManagement component
+import ModuleManagement from "./ModuleManagement";
+
+// Import Course interface
+import { Course } from "../interfaces/Course";
+
+// Import Module interface
+import { Module } from "../interfaces/Module";
+
+// Import User interface
+import { User } from "../interfaces/User";
 
 export default function AdminDashboard() {
   const {
@@ -130,6 +151,9 @@ export default function AdminDashboard() {
   const [showDemographicsModal, setShowDemographicsModal] = useState(false);
   const [selectedEventForDemographics, setSelectedEventForDemographics] =
     useState<any>(null);
+
+  // Academic planning state
+  const [activeAcademicTab, setActiveAcademicTab] = useState("dashboard");
 
   // Function to fetch users from Firestore
   const fetchUsers = async () => {
@@ -745,65 +769,120 @@ export default function AdminDashboard() {
   );
 
   // Academic Planning Section
-  const renderAcademicSection = () => (
-    <div className="slide-in section-content">
-      <div className="section-title mb-4">
-        <i className="bi bi-calendar-check"></i>
-        Academic Planning
+  const renderAcademicSection = () => {
+    // Check if we're showing course management
+    if (activeAcademicTab === "courses") {
+      return (
+        <div className="slide-in section-content">
+          <div className="section-title mb-4 d-flex justify-content-between align-items-center">
+            <div>
+              <i className="bi bi-book"></i>
+              Course Management
+            </div>
+            <button
+              className="btn btn-sm btn-outline-secondary"
+              onClick={() => setActiveAcademicTab("dashboard")}
+            >
+              <i className="bi bi-arrow-left me-1"></i>
+              Back to Academic Planning
+            </button>
+          </div>
+          <CourseManagement />
+        </div>
+      );
+    }
+
+    // Check if we're showing enrollment management
+    if (activeAcademicTab === "enrollments") {
+      return (
+        <div className="slide-in section-content">
+          <div className="section-title mb-4 d-flex justify-content-between align-items-center">
+            <div>
+              <i className="bi bi-person-check"></i>
+              Student Enrollment Management
+            </div>
+            <button
+              className="btn btn-sm btn-outline-secondary"
+              onClick={() => setActiveAcademicTab("dashboard")}
+            >
+              <i className="bi bi-arrow-left me-1"></i>
+              Back to Academic Planning
+            </button>
+          </div>
+          <EnrollmentManagement />
+        </div>
+      );
+    }
+
+    // Default academic section view with cards
+    return (
+      <div className="slide-in section-content">
+        <div className="section-title mb-4">
+          <i className="bi bi-calendar-check"></i>
+          Academic Planning
+        </div>
+
+        <div className="row g-4">
+          <div className="col-md-6">
+            <div className="dashboard-card">
+              <div className="d-flex align-items-center justify-content-between mb-3">
+                <h5 className="mb-0">Course Management</h5>
+                <div className="bg-primary bg-opacity-10 rounded-circle p-2">
+                  <i className="bi bi-book fs-4 text-primary"></i>
+                </div>
+              </div>
+              <p className="text-muted mb-3">
+                Manage courses, syllabi, and academic content.
+              </p>
+              <button
+                className="btn btn-sm btn-outline-primary"
+                onClick={() => setActiveAcademicTab("courses")}
+              >
+                Manage Courses
+              </button>
+            </div>
+          </div>
+
+          <div className="col-md-6">
+            <div className="dashboard-card">
+              <div className="d-flex align-items-center justify-content-between mb-3">
+                <h5 className="mb-0">Student Enrollments</h5>
+                <div className="bg-info bg-opacity-10 rounded-circle p-2">
+                  <i className="bi bi-person-check fs-4 text-info"></i>
+                </div>
+              </div>
+              <p className="text-muted mb-3">
+                Manage student enrollments in courses.
+              </p>
+              <button
+                className="btn btn-sm btn-outline-info"
+                onClick={() => setActiveAcademicTab("enrollments")}
+              >
+                Manage Enrollments
+              </button>
+            </div>
+          </div>
+
+          <div className="col-md-6">
+            <div className="dashboard-card">
+              <div className="d-flex align-items-center justify-content-between mb-3">
+                <h5 className="mb-0">Exams</h5>
+                <div className="bg-warning bg-opacity-10 rounded-circle p-2">
+                  <i className="bi bi-journal-check fs-4 text-warning"></i>
+                </div>
+              </div>
+              <p className="text-muted mb-3">
+                Schedule and manage examinations.
+              </p>
+              <button className="btn btn-sm btn-outline-warning">
+                Exam Schedule
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
-
-      <div className="row g-4">
-        <div className="col-md-6">
-          <div className="dashboard-card">
-            <div className="d-flex align-items-center justify-content-between mb-3">
-              <h5 className="mb-0">Course Management</h5>
-              <div className="bg-primary bg-opacity-10 rounded-circle p-2">
-                <i className="bi bi-book fs-4 text-primary"></i>
-              </div>
-            </div>
-            <p className="text-muted mb-3">
-              Manage courses, syllabi, and academic content.
-            </p>
-            <button className="btn btn-sm btn-outline-primary">
-              Manage Courses
-            </button>
-          </div>
-        </div>
-
-        <div className="col-md-6">
-          <div className="dashboard-card">
-            <div className="d-flex align-items-center justify-content-between mb-3">
-              <h5 className="mb-0">Exams</h5>
-              <div className="bg-warning bg-opacity-10 rounded-circle p-2">
-                <i className="bi bi-journal-check fs-4 text-warning"></i>
-              </div>
-            </div>
-            <p className="text-muted mb-3">Schedule and manage examinations.</p>
-            <button className="btn btn-sm btn-outline-warning">
-              Exam Schedule
-            </button>
-          </div>
-        </div>
-
-        <div className="col-md-6">
-          <div className="dashboard-card">
-            <div className="d-flex align-items-center justify-content-between mb-3">
-              <h5 className="mb-0">Academic Reports</h5>
-              <div className="bg-info bg-opacity-10 rounded-circle p-2">
-                <i className="bi bi-file-earmark-text fs-4 text-info"></i>
-              </div>
-            </div>
-            <p className="text-muted mb-3">
-              Generate and analyze academic performance reports.
-            </p>
-            <button className="btn btn-sm btn-outline-info">
-              View Reports
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+    );
+  };
 
   // Resources Section
   const renderResourcesSection = () => (
@@ -3023,39 +3102,24 @@ export default function AdminDashboard() {
           </div>
           <div
             className={`admin-menu-item ${
+              activeSection === "academic" ? "active" : ""
+            }`}
+            onClick={() => {
+              setActiveSection("academic");
+              setActiveAcademicTab("dashboard"); // Reset to default academic view
+            }}
+          >
+            <i className="bi bi-mortarboard"></i>
+            <span>Academic Planning</span>
+          </div>
+          <div
+            className={`admin-menu-item ${
               activeSection === "users" ? "active" : ""
             }`}
             onClick={() => setActiveSection("users")}
           >
             <i className="bi bi-people"></i>
             <span>User Management</span>
-          </div>
-          <div
-            className={`admin-menu-item ${
-              activeSection === "schedules" ? "active" : ""
-            }`}
-            onClick={() => setActiveSection("schedules")}
-          >
-            <i className="bi bi-calendar3"></i>
-            <span>Class Schedules</span>
-          </div>
-          <div
-            className={`admin-menu-item ${
-              activeSection === "events" ? "active" : ""
-            }`}
-            onClick={() => setActiveSection("events")}
-          >
-            <i className="bi bi-calendar-event"></i>
-            <span>Event Management</span>
-          </div>
-          <div
-            className={`admin-menu-item ${
-              activeSection === "academic" ? "active" : ""
-            }`}
-            onClick={() => setActiveSection("academic")}
-          >
-            <i className="bi bi-calendar-check"></i>
-            <span>Academic Planning</span>
           </div>
           <div
             className={`admin-menu-item ${
@@ -3074,6 +3138,24 @@ export default function AdminDashboard() {
           >
             <i className="bi bi-gear"></i>
             <span>Settings</span>
+          </div>
+          <div
+            className={`admin-menu-item ${
+              activeSection === "schedules" ? "active" : ""
+            }`}
+            onClick={() => setActiveSection("schedules")}
+          >
+            <i className="bi bi-calendar3"></i>
+            <span>Class Schedules</span>
+          </div>
+          <div
+            className={`admin-menu-item ${
+              activeSection === "events" ? "active" : ""
+            }`}
+            onClick={() => setActiveSection("events")}
+          >
+            <i className="bi bi-calendar-event"></i>
+            <span>Event Management</span>
           </div>
         </div>
 
