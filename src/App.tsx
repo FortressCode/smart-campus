@@ -19,6 +19,7 @@ import StudentDashboard from "./components/StudentDashboard";
 import Unauthorized from "./components/Unauthorized";
 import Notification from "./components/Notification";
 import ConfirmDialog from "./components/ConfirmDialog";
+import AutomatedNotification from "./components/AutomatedNotification";
 
 function App() {
   return (
@@ -76,6 +77,7 @@ function App() {
           </Routes>
           <Notification />
           <ConfirmDialog />
+          <AutomatedNotification />
         </NotificationProvider>
       </AuthProvider>
     </Router>
