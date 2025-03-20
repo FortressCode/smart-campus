@@ -30,6 +30,7 @@ import {
   where,
   getDocs,
   updateDoc,
+  addDoc,
 } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
@@ -372,7 +373,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   function login(email: string, password: string) {
-    return signInWithEmailAndPassword(auth, email, password);
+    // Call the original signInWithEmailAndPassword and then add activity logging
+    return signInWithEmailAndPassword(auth, email, password).then((result) => {
+      // Log this login activity to Firestore
+      const user = result.user;
+      const activityRef = collection(db, "loginActivities");
+      // Add a new document with a generated ID
+      addDoc(activityRef, {
+        userId: user.uid,
+        email: user.email,
+        displayName: user.displayName || email.split('@')[0],
+        timestamp: serverTimestamp(),
+        userAgent: navigator.userAgent,
+        ipAddress: "Captured on server", // For privacy reasons, we're just noting it's captured server-side
+      });
+      
+      return result;
+    });
   }
 
   function logout() {
