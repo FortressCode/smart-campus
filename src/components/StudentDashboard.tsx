@@ -985,72 +985,182 @@ export default function StudentDashboard() {
 
   // Main component render
   return (
-    <div className="dashboard-container">
-      {/* Your navbar here */}
-      <div className="dashboard-content">
-        <div className="container">
-          {error && (
-            <div
-              className="alert alert-danger mb-4 alert-dismissible fade show"
-              role="alert"
-            >
-              {error}
-              <button
-                type="button"
-                className="btn-close"
-                onClick={() => setError("")}
-              ></button>
-            </div>
-          )}
-
-          {success && (
-            <div
-              className="alert alert-success mb-4 alert-dismissible fade show"
-              role="alert"
-            >
-              {success}
-              <button
-                type="button"
-                className="btn-close"
-                onClick={() => setSuccess("")}
-              ></button>
-            </div>
-          )}
-
-          <div className="row mb-4">
-            <div className="col-12">
-              <h2 className="fw-bold">
-                Welcome, {userData?.displayName || userData?.name || "Student"}
-              </h2>
-              <p className="text-muted">
-                Manage your academic activities from this dashboard.
-              </p>
-            </div>
+    <div className="admin-layout">
+      {/* Sidebar */}
+      <div
+        className={`admin-sidebar ${
+          sidebarCollapsed ? "admin-sidebar-collapsed" : ""
+        } ${mobileOpen ? "admin-sidebar-visible" : ""}`}
+      >
+        <div className="admin-sidebar-header">
+          <div className="admin-logo-container">
+            <img src={logoUrl} alt="SCMS Logo" className="admin-logo-image" />
+            <div className="admin-logo-text">SCMS</div>
           </div>
+          {/* Mobile only close button */}
+          <button
+            className="toggle-sidebar d-block d-lg-none"
+            onClick={toggleMobileSidebar}
+          >
+            <i className="bi bi-x-lg"></i>
+          </button>
+        </div>
 
-          <div className="row">
-            <div className="col-md-3 mb-4">
-              {/* Navigation Menu */}
-              <div className="card border-0 shadow-sm">
-                <div className="list-group list-group-flush">
-                  <button
-                    className={`list-group-item list-group-item-action ${
-                      activeSection === "dashboard" ? "active" : ""
-                    }`}
-                    onClick={() => setActiveSection("dashboard")}
-                  >
-                    <i className="bi bi-speedometer2 me-2"></i> Dashboard
-                  </button>
-                  {/* ...other navigation items... */}
-                </div>
-              </div>
+        <div className="admin-sidebar-body">
+          {/* Sidebar Menu Items */}
+          <div className="admin-menu">
+            <div
+              className={`admin-menu-item ${
+                activeSection === "dashboard" ? "active" : ""
+              }`}
+              onClick={() => setActiveSection("dashboard")}
+            >
+              <i className="bi bi-speedometer2"></i>
+              <span>Dashboard</span>
             </div>
-
-            <div className="col-md-9">
-              <div className="section-wrapper">{renderContent()}</div>
+            <div
+              className={`admin-menu-item ${
+                activeSection === "classes" ? "active" : ""
+              }`}
+              onClick={() => setActiveSection("classes")}
+            >
+              <i className="bi bi-calendar-check"></i>
+              <span>My Classes</span>
+            </div>
+            <div
+              className={`admin-menu-item ${
+                activeSection === "courses" ? "active" : ""
+              }`}
+              onClick={() => setActiveSection("courses")}
+            >
+              <i className="bi bi-book"></i>
+              <span>My Courses</span>
+            </div>
+            <div
+              className={`admin-menu-item ${
+                activeSection === "materials" ? "active" : ""
+              }`}
+              onClick={() => setActiveSection("materials")}
+            >
+              <i className="bi bi-folder"></i>
+              <span>Materials</span>
+            </div>
+            <div
+              className={`admin-menu-item ${
+                activeSection === "profile" ? "active" : ""
+              }`}
+              onClick={() => setActiveSection("profile")}
+            >
+              <i className="bi bi-person-circle"></i>
+              <span>Profile</span>
             </div>
           </div>
         </div>
+
+        <div className="admin-sidebar-footer">
+          {/* Toggle button above logout */}
+          <div className="toggle-button-footer" onClick={toggleSidebar}>
+            <i
+              className={`bi ${
+                sidebarCollapsed ? "bi-chevron-right" : "bi-chevron-left"
+              }`}
+            ></i>
+            <span>Collapse Menu</span>
+          </div>
+
+          <div className="admin-menu-item logout-button" onClick={handleLogout}>
+            <i className="bi bi-box-arrow-right"></i>
+            <span>Logout</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div
+        className={`admin-content ${
+          sidebarCollapsed ? "admin-content-expanded" : ""
+        }`}
+      >
+        {/* Mobile Header */}
+        <div className="d-lg-none mb-3 d-flex justify-content-between align-items-center">
+          <button
+            className="btn btn-outline-primary"
+            onClick={toggleMobileSidebar}
+          >
+            <i className="bi bi-list"></i>
+          </button>
+          <div className="dashboard-logo">SCMS</div>
+          <div className="dropdown">
+            <button
+              className="btn btn-outline-secondary dropdown-toggle"
+              type="button"
+              id="userDropdown"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+            >
+              <i className="bi bi-person-circle"></i>
+            </button>
+            <ul
+              className="dropdown-menu dropdown-menu-end"
+              aria-labelledby="userDropdown"
+            >
+              <li>
+                <button
+                  className="dropdown-item"
+                  onClick={() => setActiveSection("profile")}
+                >
+                  Profile
+                </button>
+              </li>
+              <li>
+                <button className="dropdown-item" onClick={handleLogout}>
+                  Logout
+                </button>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        {/* Success/Error Alerts */}
+        {error && (
+          <div
+            className="alert alert-danger mb-4 alert-dismissible fade show"
+            role="alert"
+          >
+            {error}
+            <button
+              type="button"
+              className="btn-close"
+              onClick={() => setError("")}
+            ></button>
+          </div>
+        )}
+
+        {success && (
+          <div
+            className="alert alert-success mb-4 alert-dismissible fade show"
+            role="alert"
+          >
+            {success}
+            <button
+              type="button"
+              className="btn-close"
+              onClick={() => setSuccess("")}
+            ></button>
+          </div>
+        )}
+
+        {/* Welcome header */}
+        <div className="mb-4">
+          <h1 className="h3 fw-bold">Welcome, {userData?.name || "Student"}</h1>
+          <p className="text-muted">
+            Manage your classes, access learning materials, and participate in
+            campus activities.
+          </p>
+        </div>
+
+        {/* Container for dynamic content */}
+        <div className="content-container">{renderContent()}</div>
       </div>
     </div>
   );

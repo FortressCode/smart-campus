@@ -1615,7 +1615,7 @@ export default function AdminDashboard() {
       setNewUserRole("student");
       setShowAddUserModal(false);
       showNotification("User created successfully");
-      
+
       // Refresh user list
       fetchUsers();
     } catch (error: any) {
@@ -3071,9 +3071,9 @@ export default function AdminDashboard() {
     );
   };
 
-  // Actually return the UI for this component
+  // Main render - ensure content is wrapped properly
   return (
-    <div className="admin-layout">
+    <div className={`admin-layout ${mobileOpen ? "mobile-open" : ""}`}>
       {/* Sidebar */}
       <div
         className={`admin-sidebar ${
@@ -3181,91 +3181,92 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* Main content */}
       <div
         className={`admin-content ${
           sidebarCollapsed ? "admin-content-expanded" : ""
         }`}
       >
-        {/* Mobile Header */}
-        <div className="d-lg-none mb-3 d-flex justify-content-between align-items-center">
-          <button
-            className="btn btn-outline-primary"
-            onClick={toggleMobileSidebar}
-          >
-            <i className="bi bi-list"></i>
-          </button>
-          <div className="dashboard-logo">SCMS</div>
-          <div className="dropdown">
+        <div className="content-container">
+          {/* Mobile Header */}
+          <div className="d-lg-none mb-3 d-flex justify-content-between align-items-center">
             <button
-              className="btn btn-outline-secondary dropdown-toggle"
-              type="button"
-              id="userDropdown"
-              data-bs-toggle="dropdown"
-              aria-expanded="false"
+              className="btn btn-outline-primary"
+              onClick={toggleMobileSidebar}
             >
-              <i className="bi bi-person-circle"></i>
+              <i className="bi bi-list"></i>
             </button>
-            <ul
-              className="dropdown-menu dropdown-menu-end"
-              aria-labelledby="userDropdown"
+            <div className="dashboard-logo">SCMS</div>
+            <div className="dropdown">
+              <button
+                className="btn btn-outline-secondary dropdown-toggle"
+                type="button"
+                id="userDropdown"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+              >
+                <i className="bi bi-person-circle"></i>
+              </button>
+              <ul
+                className="dropdown-menu dropdown-menu-end"
+                aria-labelledby="userDropdown"
+              >
+                <li>
+                  <a className="dropdown-item" href="#profile">
+                    Profile
+                  </a>
+                </li>
+                <li>
+                  <button className="dropdown-item" onClick={handleLogout}>
+                    Logout
+                  </button>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Success/Error Alerts */}
+          {error && (
+            <div
+              className="alert alert-danger mb-4 alert-dismissible fade show"
+              role="alert"
             >
-              <li>
-                <a className="dropdown-item" href="#profile">
-                  Profile
-                </a>
-              </li>
-              <li>
-                <button className="dropdown-item" onClick={handleLogout}>
-                  Logout
-                </button>
-              </li>
-            </ul>
+              {error}
+              <button
+                type="button"
+                className="btn-close"
+                onClick={() => setError("")}
+              ></button>
+            </div>
+          )}
+
+          {success && (
+            <div
+              className="alert alert-success mb-4 alert-dismissible fade show"
+              role="alert"
+            >
+              {success}
+              <button
+                type="button"
+                className="btn-close"
+                onClick={() => setSuccess("")}
+              ></button>
+            </div>
+          )}
+
+          {/* Welcome header */}
+          <div className="mb-4">
+            <h1 className="h3 fw-bold">
+              Welcome, {userData?.name || "Administrator"}
+            </h1>
+            <p className="text-muted">
+              Manage your school's resources, users, and settings from this
+              control panel.
+            </p>
           </div>
+
+          <div className="section-wrapper">{renderContent()}</div>
         </div>
-
-        {/* Success/Error Alerts */}
-        {error && (
-          <div
-            className="alert alert-danger mb-4 alert-dismissible fade show"
-            role="alert"
-          >
-            {error}
-            <button
-              type="button"
-              className="btn-close"
-              onClick={() => setError("")}
-            ></button>
-          </div>
-        )}
-
-        {success && (
-          <div
-            className="alert alert-success mb-4 alert-dismissible fade show"
-            role="alert"
-          >
-            {success}
-            <button
-              type="button"
-              className="btn-close"
-              onClick={() => setSuccess("")}
-            ></button>
-          </div>
-        )}
-
-        {/* Welcome header */}
-        <div className="mb-4">
-          <h1 className="h3 fw-bold">
-            Welcome, {userData?.name || "Administrator"}
-          </h1>
-          <p className="text-muted">
-            Manage your school's resources, users, and settings from this
-            control panel.
-          </p>
-        </div>
-
-        {/* Container for dynamic content */}
-        <div className="content-container">{renderContent()}</div>
       </div>
     </div>
   );
