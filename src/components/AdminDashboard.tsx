@@ -63,6 +63,8 @@ import { Module } from "../interfaces/Module";
 // Import User interface
 import { User } from "../interfaces/User";
 
+import ClassroomManagement from "./ClassroomManagement";
+
 export default function AdminDashboard() {
   const {
     currentUser,
@@ -284,6 +286,25 @@ export default function AdminDashboard() {
         return renderAcademicSection();
       case "resources":
         return renderResourcesSection();
+      case "classrooms":
+        return (
+          <div className="slide-in section-content">
+            <div className="section-title mb-4 d-flex justify-content-between align-items-center">
+              <div>
+                <i className="bi bi-door-open"></i>
+                Classroom Management
+              </div>
+              <button
+                className="btn btn-sm btn-outline-secondary"
+                onClick={() => setActiveSection("resources")}
+              >
+                <i className="bi bi-arrow-left me-1"></i>
+                Back to Resources
+              </button>
+            </div>
+            <ClassroomManagement />
+          </div>
+        );
       case "settings":
         return renderSettingsSection();
       case "schedules":
@@ -925,7 +946,10 @@ export default function AdminDashboard() {
             <p className="text-muted mb-3">
               Manage classroom availability and assignments.
             </p>
-            <button className="btn btn-sm btn-outline-primary">
+            <button
+              className="btn btn-sm btn-outline-primary"
+              onClick={() => setActiveSection("classrooms")}
+            >
               View Classrooms
             </button>
           </div>
@@ -3432,15 +3456,6 @@ export default function AdminDashboard() {
           >
             <i className="bi bi-clock-history"></i>
             <span>Login Activity</span>
-          </div>
-          <div
-            className={`admin-menu-item ${
-              activeSection === "materials" ? "active" : ""
-            }`}
-            onClick={() => setActiveSection("materials")}
-          >
-            <i className="bi bi-file-earmark-text"></i>
-            <span>Material Management</span>
           </div>
         </div>
 
