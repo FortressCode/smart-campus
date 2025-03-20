@@ -64,7 +64,7 @@ interface NotificationEntry {
 }
 
 const AutomatedNotification: React.FC = () => {
-  const { userData, currentUser } = useAuth();
+  const { userData, currentUser, loading } = useAuth();
   const { showNotification } = useNotification();
   const [initialized, setInitialized] = useState(false);
   const [notificationStore, setNotificationStore] = useState<
@@ -294,7 +294,12 @@ const AutomatedNotification: React.FC = () => {
 
   // Listen for upcoming events and notify
   useEffect(() => {
-    if (!currentUser || !userData) return;
+    if (loading) return;
+
+    if (!currentUser || !userData) {
+      console.log("No user data available, skipping notifications");
+      return;
+    }
 
     const eventsCollection = collection(db, "events");
     const today = new Date().toISOString().split("T")[0];
@@ -373,7 +378,7 @@ const AutomatedNotification: React.FC = () => {
 
   // Listen for schedules relevant to the user's role
   useEffect(() => {
-    if (!currentUser || !userData) return;
+    if (loading || !userData) return;
 
     const schedulesCollection = collection(db, "schedules");
     let schedulesQuery:
@@ -381,12 +386,19 @@ const AutomatedNotification: React.FC = () => {
       | CollectionReference<DocumentData> = schedulesCollection;
 
     // Filter schedules based on user role
-    if (userData.role === "student") {
+    if (userData?.role === "student") {
       // For students, we need to first get their enrolled courses and modules
       const fetchStudentSchedules = async () => {
         try {
           // First, get student enrollments to find their courses
           const enrollmentsCollection = collection(db, "enrollments");
+
+          // Check if userData.id exists before using it in where clause
+          if (!userData?.id) {
+            console.log("User ID is undefined, cannot fetch enrollments");
+            return;
+          }
+
           const enrollmentsQuery = query(
             enrollmentsCollection,
             where("studentId", "==", userData.id)
@@ -494,12 +506,17 @@ const AutomatedNotification: React.FC = () => {
       // as it would be too resource-intensive. Instead, we'll just listen for
       // any schedules that are about to occur
       return;
-    } else if (userData.role === "teacher" || userData.role === "lecturer") {
-      // For teachers, filter by their name
-      schedulesQuery = query(
-        schedulesCollection,
-        where("lecturerName", "==", userData.name)
-      );
+    } else if (userData?.role === "teacher" || userData?.role === "lecturer") {
+      // Check if userData.name exists before using it in where clause
+      if (userData?.name) {
+        // For teachers, filter by their name
+        schedulesQuery = query(
+          schedulesCollection,
+          where("lecturerName", "==", userData.name)
+        );
+      } else {
+        console.log("Lecturer name is undefined, cannot filter schedules");
+      }
     }
 
     const fetchRelevantSchedules = async () => {
@@ -539,47 +556,97 @@ const AutomatedNotification: React.FC = () => {
       }
     };
 
-    // Set up real-time listener for schedules
-    const unsubscribeSchedules = onSnapshot(
-      schedulesQuery,
-      (snapshot: QuerySnapshot<DocumentData>) => {
-        snapshot
-          .docChanges()
-          .forEach((change: DocumentChange<DocumentData>) => {
-            if (change.type === "added" || change.type === "modified") {
-              const schedule = {
-                id: change.doc.id,
-                ...(change.doc.data() as Omit<Schedule, "id">),
-              };
-              const { isSoon, isToday } = isDateSoonOrToday(schedule.date);
-              const notificationId = `schedule-${schedule.id}-${schedule.date}-${change.type}`;
+    // Only set up listeners if schedulesQuery is properly configured
+    let unsubscribeSchedules = () => {};
 
-              // For new or updated schedules
-              if (
-                (isToday || isSoon) &&
-                !checkAndSetNotified("schedule", notificationId)
-              ) {
-                const timeFrame = isToday ? "today" : "tomorrow";
-                showNotification(
-                  `Schedule update ${timeFrame}: ${schedule.moduleTitle} at ${schedule.startTime} in Room ${schedule.classroomNumber}`
-                );
-              }
-            } else if (change.type === "removed") {
-              const schedule = {
-                id: change.doc.id,
-                ...(change.doc.data() as Omit<Schedule, "id">),
-              };
-              const notificationId = `schedule-removed-${schedule.id}`;
+    // Only subscribe if we have a valid userData with proper role and name
+    if (
+      (userData?.role === "teacher" || userData?.role === "lecturer") &&
+      userData?.name
+    ) {
+      unsubscribeSchedules = onSnapshot(
+        schedulesQuery,
+        (snapshot: QuerySnapshot<DocumentData>) => {
+          snapshot
+            .docChanges()
+            .forEach((change: DocumentChange<DocumentData>) => {
+              if (change.type === "added" || change.type === "modified") {
+                const schedule = {
+                  id: change.doc.id,
+                  ...(change.doc.data() as Omit<Schedule, "id">),
+                };
+                const { isSoon, isToday } = isDateSoonOrToday(schedule.date);
+                const notificationId = `schedule-${schedule.id}-${schedule.date}-${change.type}`;
 
-              if (!checkAndSetNotified("schedule", notificationId)) {
-                showNotification(
-                  `Class cancelled: ${schedule.moduleTitle} on ${schedule.date}`
-                );
+                // For new or updated schedules
+                if (
+                  (isToday || isSoon) &&
+                  !checkAndSetNotified("schedule", notificationId)
+                ) {
+                  const timeFrame = isToday ? "today" : "tomorrow";
+                  showNotification(
+                    `Schedule update ${timeFrame}: ${schedule.moduleTitle} at ${schedule.startTime} in Room ${schedule.classroomNumber}`
+                  );
+                }
+              } else if (change.type === "removed") {
+                const schedule = {
+                  id: change.doc.id,
+                  ...(change.doc.data() as Omit<Schedule, "id">),
+                };
+                const notificationId = `schedule-removed-${schedule.id}`;
+
+                if (!checkAndSetNotified("schedule", notificationId)) {
+                  showNotification(
+                    `Class cancelled: ${schedule.moduleTitle} on ${schedule.date}`
+                  );
+                }
               }
-            }
-          });
-      }
-    );
+            });
+        }
+      );
+    } else if (userData?.role !== "student") {
+      // For admin or other roles, subscribe to all schedules
+      unsubscribeSchedules = onSnapshot(
+        schedulesCollection,
+        (snapshot: QuerySnapshot<DocumentData>) => {
+          snapshot
+            .docChanges()
+            .forEach((change: DocumentChange<DocumentData>) => {
+              if (change.type === "added" || change.type === "modified") {
+                const schedule = {
+                  id: change.doc.id,
+                  ...(change.doc.data() as Omit<Schedule, "id">),
+                };
+                const { isSoon, isToday } = isDateSoonOrToday(schedule.date);
+                const notificationId = `schedule-${schedule.id}-${schedule.date}-${change.type}`;
+
+                // For new or updated schedules
+                if (
+                  (isToday || isSoon) &&
+                  !checkAndSetNotified("schedule", notificationId)
+                ) {
+                  const timeFrame = isToday ? "today" : "tomorrow";
+                  showNotification(
+                    `Schedule update ${timeFrame}: ${schedule.moduleTitle} at ${schedule.startTime} in Room ${schedule.classroomNumber}`
+                  );
+                }
+              } else if (change.type === "removed") {
+                const schedule = {
+                  id: change.doc.id,
+                  ...(change.doc.data() as Omit<Schedule, "id">),
+                };
+                const notificationId = `schedule-removed-${schedule.id}`;
+
+                if (!checkAndSetNotified("schedule", notificationId)) {
+                  showNotification(
+                    `Class cancelled: ${schedule.moduleTitle} on ${schedule.date}`
+                  );
+                }
+              }
+            });
+        }
+      );
+    }
 
     fetchRelevantSchedules();
 
@@ -590,45 +657,49 @@ const AutomatedNotification: React.FC = () => {
 
   // Listen for course changes (especially for students and teachers)
   useEffect(() => {
-    if (!currentUser || !userData) return;
+    if (loading || !currentUser || !userData) return;
 
     const coursesCollection = collection(db, "courses");
 
-    // Set up real-time listener for courses
-    const unsubscribeCourses = onSnapshot(
-      coursesCollection,
-      (snapshot: QuerySnapshot<DocumentData>) => {
-        snapshot
-          .docChanges()
-          .forEach((change: DocumentChange<DocumentData>) => {
-            if (change.type === "added") {
-              const course = {
-                id: change.doc.id,
-                ...(change.doc.data() as Omit<Course, "id">),
-              };
-              const notificationId = `course-added-${course.id}`;
+    // Set up real-time listener for courses only if we have valid userData
+    let unsubscribeCourses = () => {};
 
-              if (!checkAndSetNotified("course", notificationId)) {
-                showNotification(
-                  `New course available: ${course.title} (${course.code})`
-                );
-              }
-            } else if (change.type === "modified") {
-              const course = {
-                id: change.doc.id,
-                ...(change.doc.data() as Omit<Course, "id">),
-              };
-              const notificationId = `course-modified-${course.id}`;
+    if (userData) {
+      unsubscribeCourses = onSnapshot(
+        coursesCollection,
+        (snapshot: QuerySnapshot<DocumentData>) => {
+          snapshot
+            .docChanges()
+            .forEach((change: DocumentChange<DocumentData>) => {
+              if (change.type === "added") {
+                const course = {
+                  id: change.doc.id,
+                  ...(change.doc.data() as Omit<Course, "id">),
+                };
+                const notificationId = `course-added-${course.id}`;
 
-              if (!checkAndSetNotified("course", notificationId)) {
-                showNotification(
-                  `Course updated: ${course.title} (${course.code})`
-                );
+                if (!checkAndSetNotified("course", notificationId)) {
+                  showNotification(
+                    `New course available: ${course.title} (${course.code})`
+                  );
+                }
+              } else if (change.type === "modified") {
+                const course = {
+                  id: change.doc.id,
+                  ...(change.doc.data() as Omit<Course, "id">),
+                };
+                const notificationId = `course-modified-${course.id}`;
+
+                if (!checkAndSetNotified("course", notificationId)) {
+                  showNotification(
+                    `Course updated: ${course.title} (${course.code})`
+                  );
+                }
               }
-            }
-          });
-      }
-    );
+            });
+        }
+      );
+    }
 
     // Set initialized to true after first run
     setInitialized(true);
