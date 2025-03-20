@@ -14,6 +14,7 @@ import {
   getDocs,
 } from "firebase/firestore";
 import { db } from "../firebase";
+import MaterialsViewer from "./MaterialsViewer";
 
 // Define Schedule interface
 interface Schedule {
@@ -1078,124 +1079,7 @@ export default function LecturerDashboard() {
         Course Materials
       </div>
 
-      <div className="row mb-4">
-        <div className="col-12">
-          <div className="dashboard-card">
-            <div className="d-flex justify-content-between align-items-center mb-4">
-              <h5 className="mb-0">Upload Materials</h5>
-              <div>
-                <select className="form-select form-select-sm">
-                  <option>Select Course</option>
-                  <option>CS101 - Introduction to Computer Science</option>
-                  <option>CS202 - Data Structures and Algorithms</option>
-                  <option>CS405 - Project Supervision</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="mb-3">
-              <label className="form-label">Title</label>
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Material title"
-              />
-            </div>
-
-            <div className="mb-3">
-              <label className="form-label">Description</label>
-              <textarea
-                className="form-control"
-                rows={3}
-                placeholder="Add description..."
-              ></textarea>
-            </div>
-
-            <div className="mb-3">
-              <label className="form-label">File</label>
-              <input type="file" className="form-control" />
-            </div>
-
-            <button className="btn btn-primary">
-              <i className="bi bi-cloud-upload me-1"></i> Upload Material
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="row">
-        <div className="col-12">
-          <div className="dashboard-card">
-            <h5 className="mb-4">Recent Uploads</h5>
-
-            <div className="list-group">
-              <div className="list-group-item border-0 px-0">
-                <div className="d-flex align-items-center">
-                  <i className="bi bi-file-pdf fs-4 me-3 text-danger"></i>
-                  <div className="flex-grow-1">
-                    <h6 className="mb-1">
-                      Introduction to Programming - Lecture Notes
-                    </h6>
-                    <small className="text-muted d-block">
-                      CS101 • Uploaded 2 days ago
-                    </small>
-                  </div>
-                  <div>
-                    <button className="btn btn-sm btn-outline-primary me-2">
-                      <i className="bi bi-download"></i>
-                    </button>
-                    <button className="btn btn-sm btn-outline-danger">
-                      <i className="bi bi-trash"></i>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="list-group-item border-0 px-0">
-                <div className="d-flex align-items-center">
-                  <i className="bi bi-file-earmark-slides fs-4 me-3 text-primary"></i>
-                  <div className="flex-grow-1">
-                    <h6 className="mb-1">Algorithms Analysis - Presentation</h6>
-                    <small className="text-muted d-block">
-                      CS202 • Uploaded 5 days ago
-                    </small>
-                  </div>
-                  <div>
-                    <button className="btn btn-sm btn-outline-primary me-2">
-                      <i className="bi bi-download"></i>
-                    </button>
-                    <button className="btn btn-sm btn-outline-danger">
-                      <i className="bi bi-trash"></i>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="list-group-item border-0 px-0">
-                <div className="d-flex align-items-center">
-                  <i className="bi bi-file-code fs-4 me-3 text-success"></i>
-                  <div className="flex-grow-1">
-                    <h6 className="mb-1">
-                      Project Guidelines and Example Code
-                    </h6>
-                    <small className="text-muted d-block">
-                      CS405 • Uploaded 1 week ago
-                    </small>
-                  </div>
-                  <div>
-                    <button className="btn btn-sm btn-outline-primary me-2">
-                      <i className="bi bi-download"></i>
-                    </button>
-                    <button className="btn btn-sm btn-outline-danger">
-                      <i className="bi bi-trash"></i>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <MaterialsViewer role="lecturer" />
     </div>
   );
 

@@ -51,6 +51,9 @@ import UserManagement from "./UserManagement";
 // Import ModuleManagement component
 import ModuleManagement from "./ModuleManagement";
 
+// Import MaterialManagement component
+import MaterialManagement from "./MaterialManagement";
+
 // Import Course interface
 import { Course } from "../interfaces/Course";
 
@@ -289,6 +292,8 @@ export default function AdminDashboard() {
         return renderEventsSection();
       case "loginActivity":
         return renderLoginActivitySection();
+      case "materials":
+        return <MaterialManagement />;
       default:
         return renderDashboardSection();
     }
@@ -946,23 +951,6 @@ export default function AdminDashboard() {
         <div className="col-md-6">
           <div className="dashboard-card">
             <div className="d-flex align-items-center justify-content-between mb-3">
-              <h5 className="mb-0">Libraries</h5>
-              <div className="bg-warning bg-opacity-10 rounded-circle p-2">
-                <i className="bi bi-book-half fs-4 text-warning"></i>
-              </div>
-            </div>
-            <p className="text-muted mb-3">
-              Manage library resources and materials.
-            </p>
-            <button className="btn btn-sm btn-outline-warning">
-              Library Management
-            </button>
-          </div>
-        </div>
-
-        <div className="col-md-6">
-          <div className="dashboard-card">
-            <div className="d-flex align-items-center justify-content-between mb-3">
               <h5 className="mb-0">Facilities</h5>
               <div className="bg-danger bg-opacity-10 rounded-circle p-2">
                 <i className="bi bi-house-door fs-4 text-danger"></i>
@@ -973,6 +961,26 @@ export default function AdminDashboard() {
             </p>
             <button className="btn btn-sm btn-outline-danger">
               Facility Reports
+            </button>
+          </div>
+        </div>
+
+        <div className="col-md-6">
+          <div className="dashboard-card">
+            <div className="d-flex align-items-center justify-content-between mb-3">
+              <h5 className="mb-0">Materials</h5>
+              <div className="bg-warning bg-opacity-10 rounded-circle p-2">
+                <i className="bi bi-file-earmark-text fs-4 text-warning"></i>
+              </div>
+            </div>
+            <p className="text-muted mb-3">
+              Manage educational materials for modules.
+            </p>
+            <button
+              className="btn btn-sm btn-outline-warning"
+              onClick={() => setActiveSection("materials")}
+            >
+              Material Management
             </button>
           </div>
         </div>
@@ -3091,33 +3099,33 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (loginActivities.length > 0) {
       let filtered = [...loginActivities];
-      
+
       // Apply search filter (case insensitive search on name and email)
       if (searchTerm.trim() !== "") {
         const searchLower = searchTerm.toLowerCase();
         filtered = filtered.filter(
-          activity => 
-            activity.userName.toLowerCase().includes(searchLower) || 
+          (activity) =>
+            activity.userName.toLowerCase().includes(searchLower) ||
             activity.email.toLowerCase().includes(searchLower)
         );
       }
-      
+
       // Apply date filter
       if (dateFilter) {
         // Convert date filter to start of day in local timezone
         const filterDate = new Date(dateFilter);
         filterDate.setHours(0, 0, 0, 0);
-        
-        filtered = filtered.filter(activity => {
+
+        filtered = filtered.filter((activity) => {
           // Get the activity date and set to start of day for comparison
           const activityDate = new Date(activity.timestampDate);
           activityDate.setHours(0, 0, 0, 0);
-          
+
           // Compare the dates (ignoring time)
           return activityDate.getTime() === filterDate.getTime();
         });
       }
-      
+
       setFilteredActivities(filtered);
     } else {
       setFilteredActivities([]);
@@ -3131,33 +3139,35 @@ export default function AdminDashboard() {
       const activitiesCollection = collection(db, "loginActivities");
       const q = query(activitiesCollection);
       const activitiesSnapshot = await getDocs(q);
-      
+
       // Get user details for each activity
       const activitiesWithUserDetails = await Promise.all(
         activitiesSnapshot.docs.map(async (activityDoc) => {
           const activityData = activityDoc.data();
           const userId = activityData.userId;
-          
+
           // Get user details
           const userDoc = await getDoc(doc(db, "users", userId));
           const userData = userDoc.exists() ? userDoc.data() : null;
-          
+
           return {
             id: activityDoc.id,
             ...activityData,
             userName: userData?.name || activityData.displayName || "Unknown",
             userRole: userData?.role || "Unknown",
             // Convert Firebase timestamp to JS Date for display
-            timestampDate: activityData.timestamp ? new Date(activityData.timestamp.toDate()) : new Date(),
+            timestampDate: activityData.timestamp
+              ? new Date(activityData.timestamp.toDate())
+              : new Date(),
           };
         })
       );
-      
+
       // Sort by timestamp (most recent first)
       const sortedActivities = activitiesWithUserDetails.sort((a, b) => {
         return b.timestampDate.getTime() - a.timestampDate.getTime();
       });
-      
+
       setLoginActivities(sortedActivities);
       setFilteredActivities(sortedActivities); // Also set filtered activities initially
     } catch (error) {
@@ -3175,13 +3185,13 @@ export default function AdminDashboard() {
         <i className="bi bi-clock-history"></i>
         Login Activity Monitoring
       </div>
-      
+
       <div className="card shadow-sm">
         <div className="card-header bg-white">
           <div className="d-flex justify-content-between align-items-center">
             <h5 className="mb-0">User Login Activities</h5>
-            <button 
-              className="btn btn-sm btn-primary" 
+            <button
+              className="btn btn-sm btn-primary"
               onClick={fetchLoginActivities}
               disabled={loginActivitiesLoading}
             >
@@ -3206,8 +3216,8 @@ export default function AdminDashboard() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
                 {searchTerm && (
-                  <button 
-                    className="btn btn-outline-secondary" 
+                  <button
+                    className="btn btn-outline-secondary"
                     type="button"
                     onClick={() => setSearchTerm("")}
                   >
@@ -3228,8 +3238,8 @@ export default function AdminDashboard() {
                   onChange={(e) => setDateFilter(e.target.value)}
                 />
                 {dateFilter && (
-                  <button 
-                    className="btn btn-outline-secondary" 
+                  <button
+                    className="btn btn-outline-secondary"
                     type="button"
                     onClick={() => setDateFilter("")}
                   >
@@ -3239,7 +3249,7 @@ export default function AdminDashboard() {
               </div>
             </div>
             <div className="col-md-2">
-              <button 
+              <button
                 className="btn btn-outline-secondary w-100"
                 onClick={() => {
                   setSearchTerm("");
@@ -3286,13 +3296,15 @@ export default function AdminDashboard() {
                       <tr key={activity.id}>
                         <td>{activity.userName}</td>
                         <td>
-                          <span className={`badge ${
-                            activity.userRole === "admin" 
-                              ? "bg-danger" 
-                              : activity.userRole === "lecturer" 
-                                ? "bg-success" 
+                          <span
+                            className={`badge ${
+                              activity.userRole === "admin"
+                                ? "bg-danger"
+                                : activity.userRole === "lecturer"
+                                ? "bg-success"
                                 : "bg-primary"
-                          }`}>
+                            }`}
+                          >
                             {activity.userRole}
                           </span>
                         </td>
@@ -3301,10 +3313,9 @@ export default function AdminDashboard() {
                         <td>{activityDate.toLocaleTimeString()}</td>
                         <td>
                           <small className="text-muted">
-                            {activity.userAgent 
-                              ? activity.userAgent.substring(0, 30) + '...' 
-                              : 'N/A'
-                            }
+                            {activity.userAgent
+                              ? activity.userAgent.substring(0, 30) + "..."
+                              : "N/A"}
                           </small>
                         </td>
                       </tr>
@@ -3313,7 +3324,8 @@ export default function AdminDashboard() {
                 </tbody>
               </table>
               <div className="text-muted small">
-                Showing {filteredActivities.length} of {loginActivities.length} activities
+                Showing {filteredActivities.length} of {loginActivities.length}{" "}
+                activities
               </div>
             </div>
           )}
@@ -3420,6 +3432,15 @@ export default function AdminDashboard() {
           >
             <i className="bi bi-clock-history"></i>
             <span>Login Activity</span>
+          </div>
+          <div
+            className={`admin-menu-item ${
+              activeSection === "materials" ? "active" : ""
+            }`}
+            onClick={() => setActiveSection("materials")}
+          >
+            <i className="bi bi-file-earmark-text"></i>
+            <span>Material Management</span>
           </div>
         </div>
 
