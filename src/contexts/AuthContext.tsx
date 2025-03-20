@@ -71,7 +71,9 @@ interface AuthContextProps {
     name: string,
     phone: string,
     faculty: string,
-    department: string
+    department: string,
+    address: string,
+    age: string
   ) => Promise<void>;
 }
 
@@ -542,7 +544,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     name: string,
     phone: string,
     faculty: string,
-    department: string
+    department: string,
+    address: string,
+    age: string
   ) {
     if (!currentUser) {
       throw new Error("User must be logged in to update profile");
@@ -562,6 +566,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         phone,
         faculty,
         department,
+        address,
+        age,
         updatedAt: serverTimestamp(),
       });
 
@@ -573,6 +579,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           phone,
           faculty,
           department,
+          address,
+          age,
         });
       }
     } catch (error) {
