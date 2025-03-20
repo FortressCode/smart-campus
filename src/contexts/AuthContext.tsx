@@ -75,6 +75,8 @@ interface AuthContextProps {
     address: string,
     age: string
   ) => Promise<void>;
+  isStrongPasswordRequired: () => Promise<boolean>;
+  validatePasswordStrength: (password: string) => { isValid: boolean; message: string };
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
@@ -589,6 +591,70 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // Function to check if strong password is required based on admin settings
+  async function isStrongPasswordRequired() {
+    try {
+      const securitySettingsRef = doc(db, "settings", "security");
+      const securitySettings = await getDoc(securitySettingsRef);
+      
+      if (securitySettings.exists()) {
+        return securitySettings.data().enforceStrongPassword !== false;
+      }
+      
+      // Default to true if setting doesn't exist
+      return true;
+    } catch (error) {
+      console.error("Error checking password policy:", error);
+      // Default to true on error for security
+      return true;
+    }
+  }
+  
+  // Function to validate password strength
+  function validatePasswordStrength(password: string) {
+    // Basic length check
+    if (password.length < 8) {
+      return { 
+        isValid: false, 
+        message: "Password must be at least 8 characters long" 
+      };
+    }
+    
+    // Check for uppercase letters
+    if (!/[A-Z]/.test(password)) {
+      return { 
+        isValid: false, 
+        message: "Password must contain at least one uppercase letter" 
+      };
+    }
+    
+    // Check for lowercase letters
+    if (!/[a-z]/.test(password)) {
+      return { 
+        isValid: false, 
+        message: "Password must contain at least one lowercase letter" 
+      };
+    }
+    
+    // Check for numbers
+    if (!/[0-9]/.test(password)) {
+      return { 
+        isValid: false, 
+        message: "Password must contain at least one number" 
+      };
+    }
+    
+    // Check for special characters
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+      return { 
+        isValid: false, 
+        message: "Password must contain at least one special character" 
+      };
+    }
+    
+    return { isValid: true, message: "" };
+  }
+
   const value = {
     currentUser,
     userData,
@@ -602,6 +668,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     getSessionTimeout,
     updateSecuritySettings,
     updateUserProfile,
+    isStrongPasswordRequired,
+    validatePasswordStrength,
   };
 
   return (

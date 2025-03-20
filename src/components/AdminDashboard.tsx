@@ -62,11 +62,13 @@ import { User } from "../interfaces/User";
 
 export default function AdminDashboard() {
   const {
+    currentUser,
     userData,
     logout,
     adminCreateUser,
     updateSecuritySettings,
     getSessionTimeout,
+    validatePasswordStrength,
   } = useAuth();
   const { showNotification } = useNotification();
   const { showConfirm } = useConfirm();
@@ -651,6 +653,11 @@ export default function AdminDashboard() {
                       onChange={(e) => setNewUserPassword(e.target.value)}
                       required
                     />
+                    <div className="form-text">
+                      {strongPasswordEnabled
+                        ? "Password must be at least 8 characters and include uppercase, lowercase, numbers, and special characters."
+                        : "Password must be at least 6 characters."}
+                    </div>
                   </div>
                   <div className="mb-3">
                     <label htmlFor="newUserRole" className="form-label">
@@ -1573,6 +1580,18 @@ export default function AdminDashboard() {
       return;
     }
 
+    // Validate password based on policy
+    if (strongPasswordEnabled) {
+      const passwordValidation = validatePasswordStrength(newUserPassword);
+      if (!passwordValidation.isValid) {
+        setAddUserError(passwordValidation.message);
+        return;
+      }
+    } else if (newUserPassword.length < 6) {
+      setAddUserError("Password must be at least 6 characters");
+      return;
+    }
+
     try {
       setIsAddingUser(true);
       setAddUserError("");
@@ -1589,33 +1608,18 @@ export default function AdminDashboard() {
         throw new Error(result.error);
       }
 
-      // Refresh user list
-      const usersCollection = collection(db, "users");
-      const userSnapshot = await getDocs(usersCollection);
-      const userList = userSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setUsers(userList);
-
-      // Reset form and close modal
+      // Reset form and show success message
       setNewUserName("");
       setNewUserEmail("");
       setNewUserPassword("");
       setNewUserRole("student");
       setShowAddUserModal(false);
-
-      // Show success message
-      setSuccess(`User ${newUserName} added successfully`);
-      showNotification(`User ${newUserName} added successfully`);
-
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        setSuccess("");
-      }, 3000);
-    } catch (err: any) {
-      setAddUserError(err.message || "Failed to add user");
-      console.error(err);
+      showNotification("User created successfully");
+      
+      // Refresh user list
+      fetchUsers();
+    } catch (error: any) {
+      setAddUserError(error.message);
     } finally {
       setIsAddingUser(false);
     }
