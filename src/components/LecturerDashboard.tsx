@@ -1583,7 +1583,9 @@ export default function LecturerDashboard() {
         </div>
 
         {/* Container for dynamic content */}
-        <div className="content-container">{renderContent()}</div>
+        <div className="content-container">
+          <div className="section-wrapper">{renderContent()}</div>
+        </div>
       </div>
     </div>
   );

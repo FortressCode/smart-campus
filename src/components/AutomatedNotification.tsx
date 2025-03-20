@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useNotification } from "../contexts/NotificationContext";
 import { db } from "../firebase";
@@ -71,43 +71,185 @@ const AutomatedNotification: React.FC = () => {
     Record<string, NotificationEntry>
   >({});
 
+  // Use a ref to track notifications that have been shown
+  const notifiedEvents = useRef<Set<string>>(new Set());
+  const notifiedSchedules = useRef<Set<string>>(new Set());
+  const notifiedCourses = useRef<Set<string>>(new Set());
+
+  // Keep track of all active unsubscribe functions
+  const unsubscribeFunctions = useRef<(() => void)[]>([]);
+
+  // Throttle notifications to prevent flooding
+  const lastNotificationTime = useRef<number>(0);
+  const queuedNotifications = useRef<string[]>([]);
+  const processingQueue = useRef<boolean>(false);
+
+  // Process the notification queue with throttling
+  const processNotificationQueue = useCallback(() => {
+    if (processingQueue.current) return;
+
+    processingQueue.current = true;
+
+    const processNext = () => {
+      if (queuedNotifications.current.length === 0) {
+        processingQueue.current = false;
+        return;
+      }
+
+      const now = Date.now();
+      // Ensure at least 1000ms between notifications
+      const timeToWait = Math.max(0, lastNotificationTime.current + 1000 - now);
+
+      setTimeout(() => {
+        if (queuedNotifications.current.length > 0) {
+          const message = queuedNotifications.current.shift()!;
+          showNotification(message);
+          lastNotificationTime.current = Date.now();
+          processNext();
+        } else {
+          processingQueue.current = false;
+        }
+      }, timeToWait);
+    };
+
+    processNext();
+  }, [showNotification]);
+
+  // Queue a notification instead of showing immediately
+  const queueNotification = useCallback(
+    (message: string) => {
+      queuedNotifications.current.push(message);
+      processNotificationQueue();
+    },
+    [processNotificationQueue]
+  );
+
   // Clean up old notification entries - run periodically
   useEffect(() => {
     const cleanupInterval = setInterval(() => {
-      const now = Date.now();
-      const ONE_DAY = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+      const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
 
-      setNotificationStore((prevStore) => {
-        const newStore = { ...prevStore };
-        let hasChanges = false;
+      // Clean up events that are more than a day old
+      const eventIdsToRemove: string[] = [];
+      notifiedEvents.current.forEach((eventId) => {
+        // Only process IDs that have timestamps attached
+        if (eventId.includes("|")) {
+          const [id, timestamp] = eventId.split("|");
+          if (Number(timestamp) < oneDayAgo) {
+            eventIdsToRemove.push(eventId);
+            // Also remove the base ID if it exists
+            eventIdsToRemove.push(id);
+          }
+        }
+      });
 
-        // Remove entries older than 24 hours
-        Object.keys(newStore).forEach((key) => {
-          if (now - newStore[key].timestamp > ONE_DAY) {
-            delete newStore[key];
-            hasChanges = true;
+      eventIdsToRemove.forEach((id) => {
+        notifiedEvents.current.delete(id);
+      });
+
+      // Similarly clean up schedules
+      const scheduleIdsToRemove: string[] = [];
+      notifiedSchedules.current.forEach((scheduleId) => {
+        if (scheduleId.includes("|")) {
+          const [id, timestamp] = scheduleId.split("|");
+          if (Number(timestamp) < oneDayAgo) {
+            scheduleIdsToRemove.push(scheduleId);
+            scheduleIdsToRemove.push(id);
+          }
+        }
+      });
+
+      scheduleIdsToRemove.forEach((id) => {
+        notifiedSchedules.current.delete(id);
+      });
+
+      // Clean up courses
+      const courseIdsToRemove: string[] = [];
+      notifiedCourses.current.forEach((courseId) => {
+        if (courseId.includes("|")) {
+          const [id, timestamp] = courseId.split("|");
+          if (Number(timestamp) < oneDayAgo) {
+            courseIdsToRemove.push(courseId);
+            courseIdsToRemove.push(id);
+          }
+        }
+      });
+
+      courseIdsToRemove.forEach((id) => {
+        notifiedCourses.current.delete(id);
+      });
+
+      // Also clean up the notificationEntries
+      setNotificationStore((prevEntries) => {
+        const newEntries = { ...prevEntries };
+        Object.keys(newEntries).forEach((key) => {
+          if (Date.now() - newEntries[key].timestamp > 24 * 60 * 60 * 1000) {
+            delete newEntries[key];
           }
         });
-
-        // Only update state if we actually removed something
-        return hasChanges ? newStore : prevStore;
+        return newEntries;
       });
-    }, 60 * 60 * 1000); // Run cleanup every hour
+    }, 3600000); // Check every hour
 
-    return () => clearInterval(cleanupInterval);
+    // Run the cleanup once immediately on component mount
+    // to clean any leftover entries from previous sessions
+    const initialCleanup = setTimeout(() => {
+      const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+
+      // Clear all old entries from the notification store
+      setNotificationStore((prevEntries) => {
+        const newEntries = { ...prevEntries };
+        Object.keys(newEntries).forEach((key) => {
+          if (Date.now() - newEntries[key].timestamp > 24 * 60 * 60 * 1000) {
+            delete newEntries[key];
+          }
+        });
+        return newEntries;
+      });
+    }, 1000); // Run after 1 second
+
+    return () => {
+      clearInterval(cleanupInterval);
+      clearTimeout(initialCleanup);
+
+      // Unsubscribe from all Firebase listeners when component unmounts
+      unsubscribeFunctions.current.forEach((unsubscribe) => {
+        unsubscribe();
+      });
+    };
   }, []);
 
-  // Use this function to check if we've already shown a specific notification
-  const checkAndSetNotified = (id: string): boolean => {
-    // Check if notification exists and has been shown
-    if (notificationStore[id]?.shown) {
+  // Check if an event has already been notified
+  const checkAndSetNotified = (
+    type: "event" | "schedule" | "course",
+    id: string
+  ): boolean => {
+    // Create a full ID that includes the type for better tracking
+    const fullId = `${type}-${id}`;
+
+    const notifiedSet =
+      type === "event"
+        ? notifiedEvents.current
+        : type === "schedule"
+        ? notifiedSchedules.current
+        : notifiedCourses.current;
+
+    // First check if we've already notified for this exact ID
+    if (notifiedSet.has(fullId)) {
       return true; // Already notified
     }
 
-    // Set the notification as shown with current timestamp
-    setNotificationStore((prevStore) => ({
-      ...prevStore,
-      [id]: { shown: true, timestamp: Date.now() },
+    // Create a timestamp-based ID for cleaning up old notifications
+    const timestampedId = `${fullId}|${Date.now()}`;
+
+    // Add both the bare ID for checking and the timestamped ID for cleanup
+    notifiedSet.add(fullId);
+    notifiedSet.add(timestampedId);
+
+    // Also update the old tracking mechanism for backward compatibility
+    setNotificationStore((prev) => ({
+      ...prev,
+      [fullId]: { shown: true, timestamp: Date.now() },
     }));
 
     return false; // Not previously notified
@@ -171,13 +313,16 @@ const AutomatedNotification: React.FC = () => {
           const { isSoon, isToday } = isDateSoonOrToday(event.startDate);
           const notificationId = `event-${event.id}-${event.startDate}`;
 
-          if (isToday && !checkAndSetNotified(notificationId + "-today")) {
+          if (
+            isToday &&
+            !checkAndSetNotified("event", notificationId + "-today")
+          ) {
             showNotification(
               `Event today: "${event.title}" at ${event.startTime} in ${event.location}`
             );
           } else if (
             isSoon &&
-            !checkAndSetNotified(notificationId + "-tomorrow")
+            !checkAndSetNotified("event", notificationId + "-tomorrow")
           ) {
             showNotification(
               `Event tomorrow: "${event.title}" at ${event.startTime} in ${event.location}`
@@ -205,7 +350,10 @@ const AutomatedNotification: React.FC = () => {
               const notificationId = `event-${event.id}-${event.startDate}-${change.type}`;
 
               // For new events that are upcoming soon
-              if ((isToday || isSoon) && !checkAndSetNotified(notificationId)) {
+              if (
+                (isToday || isSoon) &&
+                !checkAndSetNotified("event", notificationId)
+              ) {
                 const timeFrame = isToday ? "today" : "tomorrow";
                 showNotification(
                   `New event ${timeFrame}: "${event.title}" at ${event.startTime} in ${event.location}`
@@ -319,13 +467,16 @@ const AutomatedNotification: React.FC = () => {
             const { isSoon, isToday } = isDateSoonOrToday(schedule.date);
             const notificationId = `schedule-${schedule.id}-${schedule.date}`;
 
-            if (isToday && !checkAndSetNotified(notificationId + "-today")) {
+            if (
+              isToday &&
+              !checkAndSetNotified("schedule", notificationId + "-today")
+            ) {
               showNotification(
                 `Class today: ${schedule.moduleTitle} at ${schedule.startTime} in Room ${schedule.classroomNumber}`
               );
             } else if (
               isSoon &&
-              !checkAndSetNotified(notificationId + "-tomorrow")
+              !checkAndSetNotified("schedule", notificationId + "-tomorrow")
             ) {
               showNotification(
                 `Class tomorrow: ${schedule.moduleTitle} at ${schedule.startTime} in Room ${schedule.classroomNumber}`
@@ -367,13 +518,16 @@ const AutomatedNotification: React.FC = () => {
           const { isSoon, isToday } = isDateSoonOrToday(schedule.date);
           const notificationId = `schedule-${schedule.id}-${schedule.date}`;
 
-          if (isToday && !checkAndSetNotified(notificationId + "-today")) {
+          if (
+            isToday &&
+            !checkAndSetNotified("schedule", notificationId + "-today")
+          ) {
             showNotification(
               `Class today: ${schedule.moduleTitle} at ${schedule.startTime} in Room ${schedule.classroomNumber}`
             );
           } else if (
             isSoon &&
-            !checkAndSetNotified(notificationId + "-tomorrow")
+            !checkAndSetNotified("schedule", notificationId + "-tomorrow")
           ) {
             showNotification(
               `Class tomorrow: ${schedule.moduleTitle} at ${schedule.startTime} in Room ${schedule.classroomNumber}`
@@ -401,7 +555,10 @@ const AutomatedNotification: React.FC = () => {
               const notificationId = `schedule-${schedule.id}-${schedule.date}-${change.type}`;
 
               // For new or updated schedules
-              if ((isToday || isSoon) && !checkAndSetNotified(notificationId)) {
+              if (
+                (isToday || isSoon) &&
+                !checkAndSetNotified("schedule", notificationId)
+              ) {
                 const timeFrame = isToday ? "today" : "tomorrow";
                 showNotification(
                   `Schedule update ${timeFrame}: ${schedule.moduleTitle} at ${schedule.startTime} in Room ${schedule.classroomNumber}`
@@ -414,7 +571,7 @@ const AutomatedNotification: React.FC = () => {
               };
               const notificationId = `schedule-removed-${schedule.id}`;
 
-              if (!checkAndSetNotified(notificationId)) {
+              if (!checkAndSetNotified("schedule", notificationId)) {
                 showNotification(
                   `Class cancelled: ${schedule.moduleTitle} on ${schedule.date}`
                 );
@@ -451,7 +608,7 @@ const AutomatedNotification: React.FC = () => {
               };
               const notificationId = `course-added-${course.id}`;
 
-              if (!checkAndSetNotified(notificationId)) {
+              if (!checkAndSetNotified("course", notificationId)) {
                 showNotification(
                   `New course available: ${course.title} (${course.code})`
                 );
@@ -463,7 +620,7 @@ const AutomatedNotification: React.FC = () => {
               };
               const notificationId = `course-modified-${course.id}`;
 
-              if (!checkAndSetNotified(notificationId)) {
+              if (!checkAndSetNotified("course", notificationId)) {
                 showNotification(
                   `Course updated: ${course.title} (${course.code})`
                 );

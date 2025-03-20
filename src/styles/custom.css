@@ -455,11 +455,37 @@ body {
   min-height: calc(100vh - 150px);
   display: flex;
   flex-direction: column;
+  position: relative;
+  overflow-y: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+  height: 100%;
+}
+
+.content-container::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
 }
 
 .section-content {
   width: 100%;
   flex: 1;
+  position: relative;
+  overflow: visible;
+  padding-bottom: 20px;
+}
+
+/* New classes for section wrapper */
+.section-wrapper {
+  height: calc(100vh - 150px);
+  width: 100%;
+  position: relative;
+  overflow-y: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.section-wrapper::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
 }
 
 .section-title {
@@ -531,12 +557,26 @@ body {
     margin-left: 0;
     width: 100%;
     padding: 1.5rem;
+    overflow-x: hidden;
+  }
+  
+  .section-wrapper {
+    height: calc(100vh - 120px);
   }
 }
 
 @media (max-width: 768px) {
   .admin-content {
     padding: 1rem;
+    overflow-x: hidden;
+  }
+  
+  .section-wrapper {
+    height: calc(100vh - 100px);
+  }
+  
+  .content-container {
+    min-height: calc(100vh - 100px);
   }
 }
 
@@ -708,6 +748,18 @@ body {
 .table-responsive {
   width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  margin-bottom: 1rem;
+}
+
+.table-responsive::-webkit-scrollbar {
+  height: 6px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+  background-color: var(--gray-300);
+  border-radius: 3px;
 }
 
 /* Fix column spacing */
