@@ -66,3 +66,25 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+/* Chat interface styles */
+.z-index-dropdown {
+  z-index: 1050;
+}
+
+/* Chat group styles */
+.list-group-item {
+  word-wrap: break-word;
+  white-space: normal;
+  text-align: left;
+  height: auto;
+}
+
+.list-group-item.list-group-item-action {
+  padding: 10px 15px;
+}
+
+.chat-group-name {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
