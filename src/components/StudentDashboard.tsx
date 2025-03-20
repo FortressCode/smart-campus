@@ -65,6 +65,8 @@ export default function StudentDashboard() {
   const [schedulesLoading, setSchedulesLoading] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   // Courses state
   const [enrolledCourses, setEnrolledCourses] = useState<
@@ -271,7 +273,7 @@ export default function StudentDashboard() {
     }
   };
 
-  // Render different sections based on activeSection
+  // Render the main content based on active section
   const renderContent = () => {
     switch (activeSection) {
       case "dashboard":
@@ -981,7 +983,7 @@ export default function StudentDashboard() {
     </div>
   );
 
-  // Main return of the component
+  // Main component render
   return (
     <div className="admin-layout">
       {/* Sidebar */}
@@ -1118,6 +1120,35 @@ export default function StudentDashboard() {
             </ul>
           </div>
         </div>
+
+        {/* Success/Error Alerts */}
+        {error && (
+          <div
+            className="alert alert-danger mb-4 alert-dismissible fade show"
+            role="alert"
+          >
+            {error}
+            <button
+              type="button"
+              className="btn-close"
+              onClick={() => setError("")}
+            ></button>
+          </div>
+        )}
+
+        {success && (
+          <div
+            className="alert alert-success mb-4 alert-dismissible fade show"
+            role="alert"
+          >
+            {success}
+            <button
+              type="button"
+              className="btn-close"
+              onClick={() => setSuccess("")}
+            ></button>
+          </div>
+        )}
 
         {/* Welcome header */}
         <div className="mb-4">
