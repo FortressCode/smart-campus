@@ -276,7 +276,7 @@ export default function StudentDashboard() {
     }
   };
 
-  // Render content based on active section
+  // Render the main content based on active section
   const renderContent = () => {
     switch (activeSection) {
       case "dashboard":
@@ -505,7 +505,7 @@ export default function StudentDashboard() {
     <div className="slide-in section-content">
       <div className="section-title mb-4">
         <i className="bi bi-book"></i>
-        My Courses
+        My Enrolled Courses
       </div>
 
       {coursesLoading ? (
@@ -517,71 +517,58 @@ export default function StudentDashboard() {
         </div>
       ) : enrolledCourses.length === 0 ? (
         <div className="text-center py-5">
-          <i className="bi bi-mortarboard fs-1 text-muted"></i>
+          <i className="bi bi-book fs-1 text-muted"></i>
           <p className="mt-3 text-muted">
             You are not enrolled in any courses yet
           </p>
         </div>
       ) : (
-        <div className="row g-4">
-          {enrolledCourses.map((course) => (
-            <div className="col-md-6 col-xl-4" key={course.id}>
-              <div className="dashboard-card h-100">
-                <div className="d-flex justify-content-between mb-3">
-                  <div
-                    className="bg-primary bg-opacity-10 rounded-circle p-2"
-                    style={{ width: "48px", height: "48px" }}
-                  >
-                    <i
-                      className="bi bi-book fs-4 text-primary"
-                      style={{ display: "block", margin: "0 auto" }}
-                    ></i>
-                  </div>
-                  <span className="badge rounded-pill bg-primary bg-opacity-10 text-primary align-self-start">
-                    {course.enrollment.status}
-                  </span>
-                </div>
-
-                <h5 className="mb-2">{course.title}</h5>
-                <p className="text-muted small mb-3">
-                  <strong>Code:</strong> {course.code} •{" "}
-                  <strong>Credits:</strong> {course.credits}
-                </p>
-
-                <div className="small mb-3 d-flex">
-                  <div className="me-4">
-                    <i className="bi bi-calendar-check me-1"></i>
-                    {course.enrollment.academicYear}
-                  </div>
-                  <div>
-                    <i className="bi bi-grid me-1"></i>
-                    Semester {course.enrollment.semester}
-                  </div>
-                </div>
-
-                <p className="text-truncate mb-3" title={course.description}>
-                  {course.description}
-                </p>
-
-                <div className="d-flex gap-2 mt-auto">
-                  <button className="btn btn-sm btn-outline-primary flex-grow-1">
-                    View Details
-                  </button>
-                  <button
-                    className="btn btn-sm btn-outline-success flex-grow-1"
-                    onClick={() => {
-                      setActiveSection("materials");
-                      // Store the course ID to filter materials
-                      localStorage.setItem("viewingCourseId", course.id);
-                    }}
-                  >
-                    <i className="bi bi-file-earmark-text me-1"></i>
-                    Materials
-                  </button>
-                </div>
-              </div>
+        <div className="card shadow-sm border-0">
+          <div className="card-body p-0">
+            <div className="table-responsive">
+              <table className="table table-hover mb-0">
+                <thead className="table-light">
+                  <tr>
+                    <th>Course</th>
+                    <th>Department</th>
+                    <th>Level</th>
+                    <th>Credits</th>
+                    <th>Academic Year</th>
+                    <th>Semester</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {enrolledCourses.map((course) => (
+                    <tr key={course.id}>
+                      <td>
+                        <div className="d-flex flex-column">
+                          <span className="fw-medium">{course.title}</span>
+                          <small className="text-muted">{course.code}</small>
+                        </div>
+                      </td>
+                      <td>{course.department}</td>
+                      <td>{course.level}</td>
+                      <td>{course.credits}</td>
+                      <td>{course.enrollment.academicYear}</td>
+                      <td>{course.enrollment.semester}</td>
+                      <td>
+                        <span
+                          className={`badge bg-${
+                            course.enrollment.status === "Active"
+                              ? "success"
+                              : "warning"
+                          }`}
+                        >
+                          {course.enrollment.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          ))}
+          </div>
         </div>
       )}
     </div>
@@ -591,11 +578,17 @@ export default function StudentDashboard() {
   const renderMaterialsSection = () => (
     <div className="slide-in section-content">
       <div className="section-title mb-4">
-        <i className="bi bi-file-earmark-text"></i>
+        <i className="bi bi-folder"></i>
         Learning Materials
       </div>
 
-      <MaterialsViewer role="student" />
+      {/* Materials content would go here */}
+      <div className="text-center py-5">
+        <i className="bi bi-folder fs-1 text-muted"></i>
+        <p className="mt-3 text-muted">
+          Your learning materials will appear here
+        </p>
+      </div>
     </div>
   );
 
