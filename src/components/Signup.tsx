@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -11,8 +11,45 @@ export default function Signup() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
-  const { signup } = useAuth();
+  const [strongPasswordRequired, setStrongPasswordRequired] = useState(true);
+  const [passwordRequirements, setPasswordRequirements] = useState("");
+  const { signup, isStrongPasswordRequired, validatePasswordStrength } = useAuth();
   const navigate = useNavigate();
+
+  // Fetch the password policy setting when component mounts
+  useEffect(() => {
+    async function loadPasswordPolicy() {
+      try {
+        const required = await isStrongPasswordRequired();
+        setStrongPasswordRequired(required);
+        if (required) {
+          setPasswordRequirements("Password must be at least 8 characters and include uppercase, lowercase, numbers, and special characters.");
+        } else {
+          setPasswordRequirements("Password must be at least 6 characters.");
+        }
+      } catch (error) {
+        console.error("Error loading password policy:", error);
+        // Default to requiring strong password for security
+        setStrongPasswordRequired(true);
+      }
+    }
+    
+    loadPasswordPolicy();
+  }, [isStrongPasswordRequired]);
+  
+  // Validate password based on policy setting
+  const validatePassword = (password: string) => {
+    if (strongPasswordRequired) {
+      // Use the validation function from context
+      return validatePasswordStrength(password);
+    } else {
+      // Basic validation when strong password is not required
+      return { 
+        isValid: password.length >= 6, 
+        message: password.length < 6 ? "Password must be at least 6 characters" : "" 
+      };
+    }
+  };
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -21,8 +58,10 @@ export default function Signup() {
       return setError("Passwords do not match");
     }
 
-    if (password.length < 6) {
-      return setError("Password must be at least 6 characters");
+    // Validate password based on the policy setting
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
+      return setError(passwordValidation.message);
     }
 
     try {
@@ -164,7 +203,7 @@ export default function Signup() {
                 onChange={(e) => setPassword(e.target.value)}
               />
               <div className="form-text">
-                Password must be at least 6 characters.
+                {passwordRequirements}
               </div>
             </div>
 

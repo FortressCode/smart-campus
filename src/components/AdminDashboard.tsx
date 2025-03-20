@@ -62,11 +62,13 @@ import { User } from "../interfaces/User";
 
 export default function AdminDashboard() {
   const {
+    currentUser,
     userData,
     logout,
     adminCreateUser,
     updateSecuritySettings,
     getSessionTimeout,
+    validatePasswordStrength,
   } = useAuth();
   const { showNotification } = useNotification();
   const { showConfirm } = useConfirm();
@@ -651,6 +653,11 @@ export default function AdminDashboard() {
                       onChange={(e) => setNewUserPassword(e.target.value)}
                       required
                     />
+                    <div className="form-text">
+                      {strongPasswordEnabled
+                        ? "Password must be at least 8 characters and include uppercase, lowercase, numbers, and special characters."
+                        : "Password must be at least 6 characters."}
+                    </div>
                   </div>
                   <div className="mb-3">
                     <label htmlFor="newUserRole" className="form-label">
@@ -1570,6 +1577,18 @@ export default function AdminDashboard() {
     // Validate inputs
     if (!newUserName || !newUserEmail || !newUserPassword) {
       setAddUserError("All fields are required");
+      return;
+    }
+
+    // Validate password based on policy
+    if (strongPasswordEnabled) {
+      const passwordValidation = validatePasswordStrength(newUserPassword);
+      if (!passwordValidation.isValid) {
+        setAddUserError(passwordValidation.message);
+        return;
+      }
+    } else if (newUserPassword.length < 6) {
+      setAddUserError("Password must be at least 6 characters");
       return;
     }
 
