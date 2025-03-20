@@ -157,6 +157,13 @@ export default function AdminDashboard() {
   // Academic planning state
   const [activeAcademicTab, setActiveAcademicTab] = useState("dashboard");
 
+  // Login activity state
+  const [loginActivities, setLoginActivities] = useState<any[]>([]);
+  const [loginActivitiesLoading, setLoginActivitiesLoading] = useState(true);
+  const [filteredActivities, setFilteredActivities] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
+
   // Function to fetch users from Firestore
   const fetchUsers = async () => {
     try {
@@ -280,6 +287,8 @@ export default function AdminDashboard() {
         return renderSchedulesSection();
       case "events":
         return renderEventsSection();
+      case "loginActivity":
+        return renderLoginActivitySection();
       default:
         return renderDashboardSection();
     }
@@ -3071,6 +3080,248 @@ export default function AdminDashboard() {
     );
   };
 
+  // Add useEffect to fetch login activities when that section is active
+  useEffect(() => {
+    if (activeSection === "loginActivity") {
+      fetchLoginActivities();
+    }
+  }, [activeSection]);
+
+  // Add useEffect for filtering activities when search term or date filter changes
+  useEffect(() => {
+    if (loginActivities.length > 0) {
+      let filtered = [...loginActivities];
+      
+      // Apply search filter (case insensitive search on name and email)
+      if (searchTerm.trim() !== "") {
+        const searchLower = searchTerm.toLowerCase();
+        filtered = filtered.filter(
+          activity => 
+            activity.userName.toLowerCase().includes(searchLower) || 
+            activity.email.toLowerCase().includes(searchLower)
+        );
+      }
+      
+      // Apply date filter
+      if (dateFilter) {
+        // Convert date filter to start of day in local timezone
+        const filterDate = new Date(dateFilter);
+        filterDate.setHours(0, 0, 0, 0);
+        
+        filtered = filtered.filter(activity => {
+          // Get the activity date and set to start of day for comparison
+          const activityDate = new Date(activity.timestampDate);
+          activityDate.setHours(0, 0, 0, 0);
+          
+          // Compare the dates (ignoring time)
+          return activityDate.getTime() === filterDate.getTime();
+        });
+      }
+      
+      setFilteredActivities(filtered);
+    } else {
+      setFilteredActivities([]);
+    }
+  }, [loginActivities, searchTerm, dateFilter]);
+
+  // Function to fetch login activities
+  const fetchLoginActivities = async () => {
+    try {
+      setLoginActivitiesLoading(true);
+      const activitiesCollection = collection(db, "loginActivities");
+      const q = query(activitiesCollection);
+      const activitiesSnapshot = await getDocs(q);
+      
+      // Get user details for each activity
+      const activitiesWithUserDetails = await Promise.all(
+        activitiesSnapshot.docs.map(async (activityDoc) => {
+          const activityData = activityDoc.data();
+          const userId = activityData.userId;
+          
+          // Get user details
+          const userDoc = await getDoc(doc(db, "users", userId));
+          const userData = userDoc.exists() ? userDoc.data() : null;
+          
+          return {
+            id: activityDoc.id,
+            ...activityData,
+            userName: userData?.name || activityData.displayName || "Unknown",
+            userRole: userData?.role || "Unknown",
+            // Convert Firebase timestamp to JS Date for display
+            timestampDate: activityData.timestamp ? new Date(activityData.timestamp.toDate()) : new Date(),
+          };
+        })
+      );
+      
+      // Sort by timestamp (most recent first)
+      const sortedActivities = activitiesWithUserDetails.sort((a, b) => {
+        return b.timestampDate.getTime() - a.timestampDate.getTime();
+      });
+      
+      setLoginActivities(sortedActivities);
+      setFilteredActivities(sortedActivities); // Also set filtered activities initially
+    } catch (error) {
+      console.error("Error fetching login activities:", error);
+      showNotification("Failed to load login activities");
+    } finally {
+      setLoginActivitiesLoading(false);
+    }
+  };
+
+  // Login Activity Section
+  const renderLoginActivitySection = () => (
+    <div className="slide-in section-content">
+      <div className="section-title mb-4">
+        <i className="bi bi-clock-history"></i>
+        Login Activity Monitoring
+      </div>
+      
+      <div className="card shadow-sm">
+        <div className="card-header bg-white">
+          <div className="d-flex justify-content-between align-items-center">
+            <h5 className="mb-0">User Login Activities</h5>
+            <button 
+              className="btn btn-sm btn-primary" 
+              onClick={fetchLoginActivities}
+              disabled={loginActivitiesLoading}
+            >
+              <i className="bi bi-arrow-clockwise me-1"></i>
+              Refresh
+            </button>
+          </div>
+        </div>
+        <div className="card-body">
+          {/* Filter Controls */}
+          <div className="row mb-3">
+            <div className="col-md-6">
+              <div className="input-group">
+                <span className="input-group-text">
+                  <i className="bi bi-search"></i>
+                </span>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Search by name or email..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                {searchTerm && (
+                  <button 
+                    className="btn btn-outline-secondary" 
+                    type="button"
+                    onClick={() => setSearchTerm("")}
+                  >
+                    <i className="bi bi-x"></i>
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="col-md-4">
+              <div className="input-group">
+                <span className="input-group-text">
+                  <i className="bi bi-calendar3"></i>
+                </span>
+                <input
+                  type="date"
+                  className="form-control"
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                />
+                {dateFilter && (
+                  <button 
+                    className="btn btn-outline-secondary" 
+                    type="button"
+                    onClick={() => setDateFilter("")}
+                  >
+                    <i className="bi bi-x"></i>
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="col-md-2">
+              <button 
+                className="btn btn-outline-secondary w-100"
+                onClick={() => {
+                  setSearchTerm("");
+                  setDateFilter("");
+                }}
+              >
+                Reset Filters
+              </button>
+            </div>
+          </div>
+
+          {loginActivitiesLoading ? (
+            <div className="text-center py-5">
+              <div className="spinner-border text-primary" role="status">
+                <span className="visually-hidden">Loading...</span>
+              </div>
+              <p className="mt-2">Loading login activities...</p>
+            </div>
+          ) : loginActivities.length === 0 ? (
+            <div className="alert alert-info">
+              No login activities recorded yet.
+            </div>
+          ) : filteredActivities.length === 0 ? (
+            <div className="alert alert-warning">
+              No activities match your search criteria.
+            </div>
+          ) : (
+            <div className="table-responsive">
+              <table className="table table-hover">
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Role</th>
+                    <th>Email</th>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>User Agent</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredActivities.map((activity) => {
+                    const activityDate = activity.timestampDate;
+                    return (
+                      <tr key={activity.id}>
+                        <td>{activity.userName}</td>
+                        <td>
+                          <span className={`badge ${
+                            activity.userRole === "admin" 
+                              ? "bg-danger" 
+                              : activity.userRole === "lecturer" 
+                                ? "bg-success" 
+                                : "bg-primary"
+                          }`}>
+                            {activity.userRole}
+                          </span>
+                        </td>
+                        <td>{activity.email}</td>
+                        <td>{activityDate.toLocaleDateString()}</td>
+                        <td>{activityDate.toLocaleTimeString()}</td>
+                        <td>
+                          <small className="text-muted">
+                            {activity.userAgent 
+                              ? activity.userAgent.substring(0, 30) + '...' 
+                              : 'N/A'
+                            }
+                          </small>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <div className="text-muted small">
+                Showing {filteredActivities.length} of {loginActivities.length} activities
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
   // Main render - ensure content is wrapped properly
   return (
     <div className={`admin-layout ${mobileOpen ? "mobile-open" : ""}`}>
@@ -3160,6 +3411,15 @@ export default function AdminDashboard() {
           >
             <i className="bi bi-calendar-event"></i>
             <span>Event Management</span>
+          </div>
+          <div
+            className={`admin-menu-item ${
+              activeSection === "loginActivity" ? "active" : ""
+            }`}
+            onClick={() => setActiveSection("loginActivity")}
+          >
+            <i className="bi bi-clock-history"></i>
+            <span>Login Activity</span>
           </div>
         </div>
 
