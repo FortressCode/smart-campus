@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useNotification } from "../contexts/NotificationContext";
+import { useConfirm } from "../contexts/ConfirmContext";
 import {
   collection,
   getDocs,
@@ -47,6 +48,7 @@ export default function AdminDashboard() {
     getSessionTimeout,
   } = useAuth();
   const { showNotification } = useNotification();
+  const { showConfirm } = useConfirm();
   const navigate = useNavigate();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,7 +57,7 @@ export default function AdminDashboard() {
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [selectedRole, setSelectedRole] = useState("");
   const [roleUpdated, setRoleUpdated] = useState(false);
-  const [activeSection, setActiveSection] = useState("events");
+  const [activeSection, setActiveSection] = useState("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -104,6 +106,7 @@ export default function AdminDashboard() {
   // Event management state
   const [events, setEvents] = useState<any[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
+  const [eventsLoaded, setEventsLoaded] = useState(false);
   const [isAddingEvent, setIsAddingEvent] = useState(false);
   const [editingEvent, setEditingEvent] = useState<string | null>(null);
 
@@ -202,12 +205,26 @@ export default function AdminDashboard() {
   };
 
   const handleLogout = async () => {
-    try {
-      await logout();
-      navigate("/login");
-    } catch (err) {
-      console.error("Error logging out:", err);
-    }
+    showConfirm(
+      {
+        title: "Confirm Logout",
+        message: "Are you sure you want to log out?",
+        confirmLabel: "Logout",
+        cancelLabel: "Cancel",
+        variant: "warning",
+        icon: "bi-box-arrow-right",
+      },
+      async () => {
+        try {
+          await logout();
+          showNotification("Successfully logged out");
+          navigate("/login");
+        } catch (err) {
+          console.error("Error logging out:", err);
+          showNotification("Failed to log out. Please try again.");
+        }
+      }
+    );
   };
 
   // Function to toggle sidebar
@@ -526,7 +543,7 @@ export default function AdminDashboard() {
                               </button>
                               <button
                                 className="btn btn-outline-danger"
-                                onClick={() => confirmDelete(user)}
+                                onClick={() => handleDeleteUser(user)}
                               >
                                 <i className="bi bi-trash me-1"></i> Delete
                               </button>
@@ -1325,26 +1342,37 @@ export default function AdminDashboard() {
 
   // Handle delete schedule
   const handleDeleteSchedule = async (scheduleId: string) => {
-    if (!confirm("Are you sure you want to delete this schedule?")) {
-      return;
-    }
+    showConfirm(
+      {
+        title: "Delete Schedule",
+        message:
+          "Are you sure you want to delete this schedule? This action cannot be undone.",
+        confirmLabel: "Delete",
+        cancelLabel: "Cancel",
+        variant: "danger",
+        icon: "bi-trash",
+      },
+      async () => {
+        try {
+          setSchedulesLoading(true);
 
-    try {
-      setSchedulesLoading(true);
+          // Delete from Firestore
+          const scheduleRef = doc(db, "schedules", scheduleId);
+          await deleteDoc(scheduleRef);
 
-      // Delete from Firestore
-      const scheduleRef = doc(db, "schedules", scheduleId);
-      await deleteDoc(scheduleRef);
-
-      // Update UI
-      setSchedules(schedules.filter((schedule) => schedule.id !== scheduleId));
-      showNotification("Schedule deleted successfully!");
-    } catch (err) {
-      console.error("Error deleting schedule:", err);
-      showNotification("Failed to delete schedule. Please try again.");
-    } finally {
-      setSchedulesLoading(false);
-    }
+          // Update UI
+          setSchedules(
+            schedules.filter((schedule) => schedule.id !== scheduleId)
+          );
+          showNotification("Schedule deleted successfully!");
+        } catch (err) {
+          console.error("Error deleting schedule:", err);
+          showNotification("Failed to delete schedule. Please try again.");
+        } finally {
+          setSchedulesLoading(false);
+        }
+      }
+    );
   };
 
   // Handle form submit for schedule
@@ -2692,6 +2720,7 @@ export default function AdminDashboard() {
         });
 
         setEvents(eventList);
+        setEventsLoaded(true);
       } catch (err) {
         console.error("Error fetching events:", err);
         setError("Failed to load events. Please try again.");
@@ -2700,10 +2729,13 @@ export default function AdminDashboard() {
       }
     }
 
-    if (activeSection === "events") {
+    if (activeSection === "events" && !eventsLoaded) {
       fetchEvents();
+    } else if (activeSection === "events") {
+      // Just clear the loading state if data is already loaded
+      setEventsLoading(false);
     }
-  }, [activeSection]);
+  }, [activeSection, eventsLoaded]);
 
   // Reset event form
   const resetEventForm = () => {
@@ -2759,23 +2791,84 @@ export default function AdminDashboard() {
 
   // Handle delete event
   const handleDeleteEvent = async (eventId: string) => {
-    if (!confirm("Are you sure you want to delete this event?")) {
-      return;
-    }
+    showConfirm(
+      {
+        title: "Delete Event",
+        message:
+          "Are you sure you want to delete this event? This action cannot be undone.",
+        confirmLabel: "Delete",
+        cancelLabel: "Cancel",
+        variant: "danger",
+        icon: "bi-trash",
+      },
+      async () => {
+        // Confirm callback
+        try {
+          setEventsLoading(true);
 
+          // Delete from Firestore
+          const eventRef = doc(db, "events", eventId);
+          await deleteDoc(eventRef);
+
+          // Update UI
+          setEvents(events.filter((event) => event.id !== eventId));
+          showNotification("Event deleted successfully");
+        } catch (err) {
+          console.error("Error deleting event:", err);
+          showNotification("Failed to delete event. Please try again.");
+        } finally {
+          setEventsLoading(false);
+        }
+      }
+    );
+  };
+
+  // Add a function to manually refresh events data
+  const refreshEvents = async () => {
     try {
       setEventsLoading(true);
+      const eventsCollection = collection(db, "events");
+      const eventSnapshot = await getDocs(eventsCollection);
 
-      // Delete from Firestore
-      const eventRef = doc(db, "events", eventId);
-      await deleteDoc(eventRef);
+      const eventList = eventSnapshot.docs.map((doc) => {
+        const data = doc.data();
 
-      // Update UI
-      setEvents(events.filter((event) => event.id !== eventId));
-      showNotification("Event deleted successfully");
+        // Process createdAt
+        let createdAtDate = new Date();
+        if (typeof data.createdAt === "string") {
+          createdAtDate = new Date(data.createdAt);
+        } else if (
+          data.createdAt?.toDate &&
+          typeof data.createdAt.toDate === "function"
+        ) {
+          createdAtDate = data.createdAt.toDate();
+        }
+
+        return {
+          id: doc.id,
+          title: data.title || "",
+          description: data.description || "",
+          location: data.location || "",
+          organizer: data.organizer || "",
+          partnership: data.partnership || "",
+          category: data.category || "Academic",
+          startDate: data.startDate || "",
+          endDate: data.endDate || "",
+          startTime: data.startTime || "",
+          endTime: data.endTime || "",
+          expectedParticipants: Number(data.expectedParticipants) || 0,
+          actualParticipants: Number(data.actualParticipants) || 0,
+          successRate: Number(data.successRate) || 0,
+          status: data.status || "Upcoming",
+          createdAt: createdAtDate,
+          createdBy: data.createdBy || "unknown",
+        };
+      });
+
+      setEvents(eventList);
     } catch (err) {
-      console.error("Error deleting event:", err);
-      showNotification("Failed to delete event. Please try again.");
+      console.error("Error refreshing events:", err);
+      showNotification("Failed to refresh events data");
     } finally {
       setEventsLoading(false);
     }
@@ -2858,6 +2951,41 @@ export default function AdminDashboard() {
     } finally {
       setEventsLoading(false);
     }
+  };
+
+  // Handle direct user deletion with confirm dialog
+  const handleDeleteUser = (user: any) => {
+    showConfirm(
+      {
+        title: "Delete User",
+        message: `Are you sure you want to delete ${
+          user.name || user.email
+        }? This action cannot be undone.`,
+        confirmLabel: "Delete",
+        cancelLabel: "Cancel",
+        variant: "danger",
+        icon: "bi-trash",
+      },
+      async () => {
+        setIsDeleting(true);
+        setError("");
+        setSuccess("");
+
+        try {
+          // Delete user from Firestore
+          await deleteDoc(doc(db, "users", user.id));
+
+          // Update UI
+          setUsers(users.filter((u) => u.id !== user.id));
+          showNotification("User deleted successfully");
+        } catch (err) {
+          console.error("Error deleting user:", err);
+          showNotification("Failed to delete user");
+        } finally {
+          setIsDeleting(false);
+        }
+      }
+    );
   };
 
   // Actually return the UI for this component

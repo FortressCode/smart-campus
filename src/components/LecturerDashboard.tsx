@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { useNotification } from "../contexts/NotificationContext";
+import { useConfirm } from "../contexts/ConfirmContext";
 import NavBar from "./NavBar";
 import {
   doc,
@@ -30,6 +32,8 @@ interface Schedule {
 
 export default function LecturerDashboard() {
   const { userData, logout, currentUser } = useAuth();
+  const { showNotification } = useNotification();
+  const { showConfirm } = useConfirm();
   const navigate = useNavigate();
 
   // Redirect to login if not logged in
@@ -42,8 +46,6 @@ export default function LecturerDashboard() {
   const [activeSection, setActiveSection] = useState("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
   // Schedule state
   const [schedules, setSchedules] = useState<Schedule[]>([]);
@@ -83,12 +85,26 @@ export default function LecturerDashboard() {
   };
 
   const handleLogout = async () => {
-    try {
-      await logout();
-      navigate("/login");
-    } catch (err) {
-      console.error("Error logging out:", err);
-    }
+    showConfirm(
+      {
+        title: "Confirm Logout",
+        message: "Are you sure you want to log out?",
+        confirmLabel: "Logout",
+        cancelLabel: "Cancel",
+        variant: "warning",
+        icon: "bi-box-arrow-right",
+      },
+      async () => {
+        try {
+          await logout();
+          showNotification("Successfully logged out");
+          navigate("/login");
+        } catch (err) {
+          console.error("Error logging out:", err);
+          showNotification("Failed to log out. Please try again.");
+        }
+      }
+    );
   };
 
   // Load profile data when component mounts or activeSection changes to profile
@@ -111,7 +127,7 @@ export default function LecturerDashboard() {
     }
   }, [activeSection, userData]);
 
-  // Load lecturer's schedules
+  // Load schedules when component mounts
   useEffect(() => {
     async function fetchLecturerSchedules() {
       if (!userData) {
@@ -165,26 +181,24 @@ export default function LecturerDashboard() {
           });
         }
 
-        const scheduleList: Schedule[] = scheduleSnapshot.docs.map(
+        const scheduleList = scheduleSnapshot.docs.map(
           (doc) =>
             ({
               id: doc.id,
               ...doc.data(),
             } as Schedule)
         );
-
-        console.log("Processed schedules:", scheduleList);
         setSchedules(scheduleList);
       } catch (err) {
         console.error("Error fetching schedules:", err);
-        setError("Failed to load schedules. Please try again.");
+        showNotification("Failed to load schedules. Please try again.");
       } finally {
         setSchedulesLoading(false);
       }
     }
 
     fetchLecturerSchedules();
-  }, [userData]);
+  }, [userData, showNotification]);
 
   // Update profile function
   const handleUpdateProfile = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -194,7 +208,7 @@ export default function LecturerDashboard() {
     console.log("Current user:", currentUser);
 
     if (!userData) {
-      setError("User data is missing. Please try logging in again.");
+      showNotification("User data is missing. Please try logging in again.");
       return;
     }
 
@@ -204,14 +218,12 @@ export default function LecturerDashboard() {
     console.log("Using UID:", uid);
 
     if (!uid) {
-      setError("User ID is missing. Please try logging in again.");
+      showNotification("User ID is missing. Please try logging in again.");
       return;
     }
 
     try {
       setProfileLoading(true);
-      setError("");
-      setSuccess("");
 
       console.log("Checking if user document exists...");
       // First check if the document exists
@@ -220,7 +232,7 @@ export default function LecturerDashboard() {
 
       if (!docSnap.exists()) {
         console.error("User document does not exist in Firestore");
-        setError("User profile not found. Please contact support.");
+        showNotification("User profile not found. Please contact support.");
         setProfileLoading(false);
         return;
       }
@@ -242,11 +254,11 @@ export default function LecturerDashboard() {
       });
 
       console.log("Profile updated successfully");
-      setSuccess("Profile updated successfully!");
+      showNotification("Profile updated successfully!");
       setIsEditing(false);
     } catch (err) {
       console.error("Error updating profile:", err);
-      setError(
+      showNotification(
         `Failed to update profile: ${
           err instanceof Error ? err.message : String(err)
         }`
@@ -284,531 +296,512 @@ export default function LecturerDashboard() {
         Profile Management
       </div>
 
-      <div
-        className="dashboard-card overflow-auto"
-        style={{
-          borderRadius: "12px",
-          boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
-          maxHeight: "calc(100vh - 180px)", // Limit height and enable scrolling
-          position: "relative", // Ensure proper stacking context
-          overflowX: "hidden", // Prevent horizontal scrolling
-          padding: "20px", // Add some consistent padding
-        }}
-      >
-        {error && <div className="alert alert-danger mb-4">{error}</div>}
-        {success && <div className="alert alert-success mb-4">{success}</div>}
-
-        {profileLoading ? (
-          <div className="text-center py-5">
-            <div className="spinner-border text-primary" role="status">
-              <span className="visually-hidden">Loading...</span>
-            </div>
-            <p className="mt-3 text-muted">Loading your profile...</p>
+      {profileLoading ? (
+        <div className="text-center py-5">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
           </div>
-        ) : isEditing ? (
-          <form
-            onSubmit={handleUpdateProfile}
-            className="profile-edit-form"
-            style={{
-              width: "100%",
-              height: "100%",
-            }}
-          >
-            <div className="row">
-              <div className="col-md-4 mb-4 text-center">
-                <div
-                  className="position-relative mx-auto"
-                  style={{ width: "150px", height: "150px" }}
-                >
-                  {profileImage ? (
-                    <img
-                      src={profileImage}
-                      alt="Profile"
-                      className="rounded-circle img-thumbnail"
-                      style={{
-                        width: "150px",
-                        height: "150px",
-                        objectFit: "cover",
-                      }}
-                    />
-                  ) : (
-                    <div
-                      className="rounded-circle bg-primary bg-opacity-10 d-flex align-items-center justify-content-center"
-                      style={{ width: "150px", height: "150px" }}
-                    >
-                      <i
-                        className="bi bi-person-fill text-primary"
-                        style={{ fontSize: "4rem" }}
-                      ></i>
+          <p className="mt-3 text-muted">Loading your profile...</p>
+        </div>
+      ) : isEditing ? (
+        <form
+          onSubmit={handleUpdateProfile}
+          className="profile-edit-form"
+          style={{
+            width: "100%",
+            maxHeight: "calc(100vh - 180px)",
+            overflowY: "auto",
+            paddingRight: "10px",
+          }}
+        >
+          <div className="row">
+            <div className="col-md-4 mb-4 text-center">
+              <div
+                className="position-relative mx-auto"
+                style={{ width: "150px", height: "150px" }}
+              >
+                {profileImage ? (
+                  <img
+                    src={profileImage}
+                    alt="Profile"
+                    className="rounded-circle img-thumbnail"
+                    style={{
+                      width: "150px",
+                      height: "150px",
+                      objectFit: "cover",
+                    }}
+                  />
+                ) : (
+                  <div
+                    className="rounded-circle bg-primary bg-opacity-10 d-flex align-items-center justify-content-center"
+                    style={{ width: "150px", height: "150px" }}
+                  >
+                    <i
+                      className="bi bi-person-fill text-primary"
+                      style={{ fontSize: "4rem" }}
+                    ></i>
+                  </div>
+                )}
+                <div className="position-absolute bottom-0 end-0">
+                  <label
+                    htmlFor="profile-image-upload"
+                    className="btn btn-sm btn-primary rounded-circle"
+                  >
+                    <i className="bi bi-camera"></i>
+                  </label>
+                  <input
+                    type="file"
+                    id="profile-image-upload"
+                    className="d-none"
+                    accept="image/*"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        // In a real app, you would upload this to storage
+                        // and get back a URL. For now, we'll use a placeholder.
+                        const file = e.target.files[0];
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                          if (e.target && e.target.result) {
+                            setProfileImage(e.target.result as string);
+                          }
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+              <h5 className="mt-3">{name || "Your Name"}</h5>
+              <p className="text-muted mb-3">{email || "email@example.com"}</p>
+            </div>
+
+            <div className="col-md-8">
+              <div className="card mb-4 border-0 bg-light">
+                <div className="card-body p-3">
+                  <h6 className="card-title mb-3">
+                    <i className="bi bi-person-badge me-2 text-primary"></i>
+                    Personal Information
+                  </h6>
+
+                  <div className="row">
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label small text-muted">
+                        Full Name
+                      </label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        required
+                      />
                     </div>
-                  )}
-                  <div className="position-absolute bottom-0 end-0">
-                    <label
-                      htmlFor="profile-image-upload"
-                      className="btn btn-sm btn-primary rounded-circle"
-                    >
-                      <i className="bi bi-camera"></i>
+
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label small text-muted">
+                        Email Address
+                      </label>
+                      <input
+                        type="email"
+                        className="form-control bg-light"
+                        value={email}
+                        disabled
+                        readOnly
+                      />
+                      <small className="text-muted">
+                        Email cannot be changed
+                      </small>
+                    </div>
+                  </div>
+
+                  <div className="row">
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label small text-muted">Age</label>
+                      <input
+                        type="number"
+                        className="form-control"
+                        value={age}
+                        onChange={(e) => setAge(e.target.value)}
+                        min="18"
+                        max="100"
+                      />
+                    </div>
+
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label small text-muted">
+                        Phone Number
+                      </label>
+                      <input
+                        type="tel"
+                        className="form-control"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="e.g., +1 (123) 456-7890"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label small text-muted">
+                      Address
                     </label>
-                    <input
-                      type="file"
-                      id="profile-image-upload"
-                      className="d-none"
-                      accept="image/*"
-                      onChange={(e) => {
-                        if (e.target.files && e.target.files[0]) {
-                          // In a real app, you would upload this to storage
-                          // and get back a URL. For now, we'll use a placeholder.
-                          const file = e.target.files[0];
-                          const reader = new FileReader();
-                          reader.onload = (e) => {
-                            if (e.target && e.target.result) {
-                              setProfileImage(e.target.result as string);
-                            }
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                    />
+                    <textarea
+                      className="form-control"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      rows={2}
+                      placeholder="Your full address"
+                    ></textarea>
                   </div>
                 </div>
-                <h5 className="mt-3">{name || "Your Name"}</h5>
-                <p className="text-muted mb-3">
-                  {email || "email@example.com"}
-                </p>
               </div>
 
-              <div className="col-md-8">
-                <div className="card mb-4 border-0 bg-light">
-                  <div className="card-body p-3">
-                    <h6 className="card-title mb-3">
-                      <i className="bi bi-person-badge me-2 text-primary"></i>
-                      Personal Information
-                    </h6>
+              <div className="card mb-4 border-0 bg-light">
+                <div className="card-body p-3">
+                  <h6 className="card-title mb-3">
+                    <i className="bi bi-building me-2 text-primary"></i>
+                    Campus Information
+                  </h6>
 
-                    <div className="row">
-                      <div className="col-md-6 mb-3">
-                        <label className="form-label small text-muted">
-                          Full Name
-                        </label>
+                  <div className="row">
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label small text-muted">
+                        Role
+                      </label>
+                      <div className="input-group">
+                        <span className="input-group-text bg-primary text-white">
+                          <i className="bi bi-person-badge"></i>
+                        </span>
                         <input
                           type="text"
-                          className="form-control"
-                          value={name}
-                          onChange={(e) => setName(e.target.value)}
-                          required
-                        />
-                      </div>
-
-                      <div className="col-md-6 mb-3">
-                        <label className="form-label small text-muted">
-                          Email Address
-                        </label>
-                        <input
-                          type="email"
                           className="form-control bg-light"
-                          value={email}
+                          value={role}
                           disabled
                           readOnly
                         />
-                        <small className="text-muted">
-                          Email cannot be changed
-                        </small>
                       </div>
+                      <small className="text-muted">
+                        Role cannot be changed
+                      </small>
                     </div>
 
-                    <div className="row">
-                      <div className="col-md-6 mb-3">
-                        <label className="form-label small text-muted">
-                          Age
-                        </label>
-                        <input
-                          type="number"
-                          className="form-control"
-                          value={age}
-                          onChange={(e) => setAge(e.target.value)}
-                          min="18"
-                          max="100"
-                        />
-                      </div>
-
-                      <div className="col-md-6 mb-3">
-                        <label className="form-label small text-muted">
-                          Phone Number
-                        </label>
-                        <input
-                          type="tel"
-                          className="form-control"
-                          value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
-                          placeholder="e.g., +1 (123) 456-7890"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="mb-3">
+                    <div className="col-md-6 mb-3">
                       <label className="form-label small text-muted">
-                        Address
+                        Branch
                       </label>
-                      <textarea
-                        className="form-control"
-                        value={address}
-                        onChange={(e) => setAddress(e.target.value)}
-                        rows={2}
-                        placeholder="Your full address"
-                      ></textarea>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="card mb-4 border-0 bg-light">
-                  <div className="card-body p-3">
-                    <h6 className="card-title mb-3">
-                      <i className="bi bi-building me-2 text-primary"></i>
-                      Campus Information
-                    </h6>
-
-                    <div className="row">
-                      <div className="col-md-6 mb-3">
-                        <label className="form-label small text-muted">
-                          Role
-                        </label>
-                        <div className="input-group">
-                          <span className="input-group-text bg-primary text-white">
-                            <i className="bi bi-person-badge"></i>
-                          </span>
-                          <input
-                            type="text"
-                            className="form-control bg-light"
-                            value={role}
-                            disabled
-                            readOnly
-                          />
-                        </div>
-                        <small className="text-muted">
-                          Role cannot be changed
-                        </small>
-                      </div>
-
-                      <div className="col-md-6 mb-3">
-                        <label className="form-label small text-muted">
-                          Branch
-                        </label>
-                        <div className="input-group">
-                          <span className="input-group-text bg-primary text-white">
-                            <i className="bi bi-geo-alt"></i>
-                          </span>
-                          <select
-                            className="form-select"
-                            value={branch}
-                            onChange={(e) => setBranch(e.target.value)}
-                          >
-                            <option value="">Select Branch</option>
-                            <option value="Colombo">Colombo</option>
-                            <option value="Kandy">Kandy</option>
-                            <option value="Gampaha">Gampaha</option>
-                            <option value="Negombo">Negombo</option>
-                            <option value="Kurunegala">Kurunegala</option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="card mb-4 border-0 bg-light">
-              <div className="card-body p-3">
-                <h6 className="card-title mb-3">
-                  <i className="bi bi-mortarboard me-2 text-primary"></i>
-                  Academic Information
-                </h6>
-
-                <div className="mb-3">
-                  <label className="form-label small text-muted">
-                    Specialization
-                  </label>
-                  <div className="input-group">
-                    <span className="input-group-text bg-primary text-white">
-                      <i className="bi bi-book"></i>
-                    </span>
-                    <input
-                      type="text"
-                      className="form-control"
-                      value={specialization}
-                      onChange={(e) => setSpecialization(e.target.value)}
-                      placeholder="e.g., Computer Science, Data Science, Artificial Intelligence"
-                    />
-                  </div>
-                </div>
-
-                <div className="mb-3">
-                  <label className="form-label small text-muted">
-                    Qualifications
-                  </label>
-                  <div className="input-group">
-                    <span className="input-group-text bg-primary text-white">
-                      <i className="bi bi-award"></i>
-                    </span>
-                    <textarea
-                      className="form-control"
-                      value={qualifications}
-                      onChange={(e) => setQualifications(e.target.value)}
-                      rows={2}
-                      placeholder="e.g., PhD in Computer Science, MSc in Data Science"
-                    ></textarea>
-                  </div>
-                </div>
-
-                <div className="mb-3">
-                  <label className="form-label small text-muted">
-                    Teaching Experience
-                  </label>
-                  <div className="input-group">
-                    <span className="input-group-text bg-primary text-white">
-                      <i className="bi bi-briefcase"></i>
-                    </span>
-                    <textarea
-                      className="form-control"
-                      value={experience}
-                      onChange={(e) => setExperience(e.target.value)}
-                      rows={2}
-                      placeholder="Briefly describe your teaching experience"
-                    ></textarea>
-                  </div>
-                </div>
-
-                <div className="mb-0">
-                  <label className="form-label small text-muted">Bio</label>
-                  <div className="input-group">
-                    <span className="input-group-text bg-primary text-white">
-                      <i className="bi bi-person-vcard"></i>
-                    </span>
-                    <textarea
-                      className="form-control"
-                      value={bio}
-                      onChange={(e) => setBio(e.target.value)}
-                      rows={2}
-                      placeholder="Short bio for your profile page"
-                    ></textarea>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="d-flex gap-2 mt-4 mb-3">
-              <button
-                type="submit"
-                className="btn btn-primary btn-lg flex-fill"
-                disabled={profileLoading}
-              >
-                {profileLoading ? (
-                  <>
-                    <span
-                      className="spinner-border spinner-border-sm me-2"
-                      role="status"
-                      aria-hidden="true"
-                    ></span>
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <i className="bi bi-check-circle me-2"></i>
-                    Save Changes
-                  </>
-                )}
-              </button>
-              <button
-                type="button"
-                className="btn btn-outline-secondary btn-lg flex-fill"
-                onClick={() => setIsEditing(false)}
-                disabled={profileLoading}
-              >
-                <i className="bi bi-x-circle me-2"></i>
-                Cancel
-              </button>
-            </div>
-          </form>
-        ) : (
-          <div>
-            <div className="d-flex justify-content-between align-items-center mb-4">
-              <h5 className="mb-0">Profile Information</h5>
-              <button
-                className="btn btn-primary"
-                onClick={() => setIsEditing(true)}
-              >
-                <i className="bi bi-pencil me-2"></i> Edit Profile
-              </button>
-            </div>
-
-            <div className="row">
-              <div className="col-lg-4 col-md-5 text-center mb-4 mb-md-0">
-                <div className="profile-image-container mx-auto mb-3">
-                  {profileImage ? (
-                    <img
-                      src={profileImage}
-                      alt="Profile"
-                      className="rounded-circle img-thumbnail shadow"
-                      style={{
-                        width: "180px",
-                        height: "180px",
-                        objectFit: "cover",
-                      }}
-                    />
-                  ) : (
-                    <div
-                      className="rounded-circle bg-primary bg-opacity-10 d-flex align-items-center justify-content-center shadow"
-                      style={{
-                        width: "180px",
-                        height: "180px",
-                        margin: "0 auto",
-                      }}
-                    >
-                      <i
-                        className="bi bi-person-fill text-primary"
-                        style={{ fontSize: "5rem" }}
-                      ></i>
-                    </div>
-                  )}
-                </div>
-
-                <div className="card border-0 bg-light mb-4">
-                  <div className="card-body">
-                    <h4 className="mb-1">{name || "Not set"}</h4>
-                    <p className="text-muted mb-2">{email || "Not set"}</p>
-                    <div className="d-flex gap-2 justify-content-center mb-2">
-                      <span className="badge bg-primary">{role}</span>
-                      {branch && (
-                        <span className="badge bg-secondary">
-                          {branch} Branch
+                      <div className="input-group">
+                        <span className="input-group-text bg-primary text-white">
+                          <i className="bi bi-geo-alt"></i>
                         </span>
-                      )}
-                    </div>
-                    {specialization && (
-                      <p className="text-muted mb-0 mt-2 small">
-                        <i className="bi bi-book me-1"></i> {specialization}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Profile Completion */}
-                <div className="card border-0 bg-light">
-                  <div className="card-body">
-                    <h6 className="mb-3">Profile Completion</h6>
-                    <div className="progress mb-2" style={{ height: "10px" }}>
-                      <div
-                        className="progress-bar bg-success"
-                        role="progressbar"
-                        style={{
-                          width: `${
-                            ([
-                              name,
-                              email,
-                              role,
-                              branch,
-                              age,
-                              phone,
-                              address,
-                              specialization,
-                              qualifications,
-                              experience,
-                              bio,
-                              profileImage,
-                            ].filter(Boolean).length *
-                              100) /
-                            12
-                          }%`,
-                        }}
-                      ></div>
-                    </div>
-                    <p className="small text-muted mb-0">
-                      Complete your profile to improve visibility among students
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="col-lg-8 col-md-7">
-                <div className="card border-0 shadow-sm mb-4">
-                  <div className="card-body">
-                    <h5 className="card-title mb-3">
-                      <i className="bi bi-person text-primary me-2"></i>
-                      Contact Information
-                    </h5>
-                    <div className="row mb-3">
-                      <div className="col-md-6">
-                        <p className="mb-1 text-muted">
-                          <i className="bi bi-telephone me-2"></i>Phone
-                        </p>
-                        <p className="mb-3 fw-medium">{phone || "Not set"}</p>
-                      </div>
-                      <div className="col-md-6">
-                        <p className="mb-1 text-muted">
-                          <i className="bi bi-geo-alt me-2"></i>Address
-                        </p>
-                        <p className="mb-3 fw-medium">{address || "Not set"}</p>
+                        <select
+                          className="form-select"
+                          value={branch}
+                          onChange={(e) => setBranch(e.target.value)}
+                        >
+                          <option value="">Select Branch</option>
+                          <option value="Colombo">Colombo</option>
+                          <option value="Kandy">Kandy</option>
+                          <option value="Gampaha">Gampaha</option>
+                          <option value="Negombo">Negombo</option>
+                          <option value="Kurunegala">Kurunegala</option>
+                        </select>
                       </div>
                     </div>
-                    <div className="mb-0">
-                      <p className="mb-1 text-muted">
-                        <i className="bi bi-calendar me-2"></i>Age
-                      </p>
-                      <p className="mb-0 fw-medium">{age || "Not set"}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="card border-0 shadow-sm">
-                  <div className="card-body">
-                    <h5 className="card-title mb-3">
-                      <i className="bi bi-mortarboard text-primary me-2"></i>
-                      Academic Information
-                    </h5>
-
-                    <div className="mb-3">
-                      <p className="mb-1 text-muted">
-                        <i className="bi bi-book me-2"></i>Specialization
-                      </p>
-                      <p className="mb-3 fw-medium">
-                        {specialization || "Not set"}
-                      </p>
-                    </div>
-
-                    <div className="mb-3">
-                      <p className="mb-1 text-muted">
-                        <i className="bi bi-award me-2"></i>Qualifications
-                      </p>
-                      <p className="mb-3 fw-medium">
-                        {qualifications || "Not set"}
-                      </p>
-                    </div>
-
-                    <div className="mb-3">
-                      <p className="mb-1 text-muted">
-                        <i className="bi bi-briefcase me-2"></i>Teaching
-                        Experience
-                      </p>
-                      <p className="mb-3 fw-medium">
-                        {experience || "Not set"}
-                      </p>
-                    </div>
-
-                    {bio && (
-                      <div className="mb-0">
-                        <p className="mb-1 text-muted">
-                          <i className="bi bi-person-badge me-2"></i>Bio
-                        </p>
-                        <p className="mb-0 fw-medium">{bio}</p>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        )}
-      </div>
+
+          <div className="card mb-4 border-0 bg-light">
+            <div className="card-body p-3">
+              <h6 className="card-title mb-3">
+                <i className="bi bi-mortarboard me-2 text-primary"></i>
+                Academic Information
+              </h6>
+
+              <div className="mb-3">
+                <label className="form-label small text-muted">
+                  Specialization
+                </label>
+                <div className="input-group">
+                  <span className="input-group-text bg-primary text-white">
+                    <i className="bi bi-book"></i>
+                  </span>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={specialization}
+                    onChange={(e) => setSpecialization(e.target.value)}
+                    placeholder="e.g., Computer Science, Data Science, Artificial Intelligence"
+                  />
+                </div>
+              </div>
+
+              <div className="mb-3">
+                <label className="form-label small text-muted">
+                  Qualifications
+                </label>
+                <div className="input-group">
+                  <span className="input-group-text bg-primary text-white">
+                    <i className="bi bi-award"></i>
+                  </span>
+                  <textarea
+                    className="form-control"
+                    value={qualifications}
+                    onChange={(e) => setQualifications(e.target.value)}
+                    rows={2}
+                    placeholder="e.g., PhD in Computer Science, MSc in Data Science"
+                  ></textarea>
+                </div>
+              </div>
+
+              <div className="mb-3">
+                <label className="form-label small text-muted">
+                  Teaching Experience
+                </label>
+                <div className="input-group">
+                  <span className="input-group-text bg-primary text-white">
+                    <i className="bi bi-briefcase"></i>
+                  </span>
+                  <textarea
+                    className="form-control"
+                    value={experience}
+                    onChange={(e) => setExperience(e.target.value)}
+                    rows={2}
+                    placeholder="Briefly describe your teaching experience"
+                  ></textarea>
+                </div>
+              </div>
+
+              <div className="mb-0">
+                <label className="form-label small text-muted">Bio</label>
+                <div className="input-group">
+                  <span className="input-group-text bg-primary text-white">
+                    <i className="bi bi-person-vcard"></i>
+                  </span>
+                  <textarea
+                    className="form-control"
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    rows={2}
+                    placeholder="Short bio for your profile page"
+                  ></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="d-flex gap-2 mt-4 mb-3">
+            <button
+              type="submit"
+              className="btn btn-primary btn-lg flex-fill"
+              disabled={profileLoading}
+            >
+              {profileLoading ? (
+                <>
+                  <span
+                    className="spinner-border spinner-border-sm me-2"
+                    role="status"
+                    aria-hidden="true"
+                  ></span>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <i className="bi bi-check-circle me-2"></i>
+                  Save Changes
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              className="btn btn-outline-secondary btn-lg flex-fill"
+              onClick={() => setIsEditing(false)}
+              disabled={profileLoading}
+            >
+              <i className="bi bi-x-circle me-2"></i>
+              Cancel
+            </button>
+          </div>
+        </form>
+      ) : (
+        <div>
+          <div className="d-flex justify-content-between align-items-center mb-4">
+            <h5 className="mb-0">Profile Information</h5>
+            <button
+              className="btn btn-primary"
+              onClick={() => setIsEditing(true)}
+            >
+              <i className="bi bi-pencil me-2"></i> Edit Profile
+            </button>
+          </div>
+
+          <div className="row">
+            <div className="col-lg-4 col-md-5 text-center mb-4 mb-md-0">
+              <div className="profile-image-container mx-auto mb-3">
+                {profileImage ? (
+                  <img
+                    src={profileImage}
+                    alt="Profile"
+                    className="rounded-circle img-thumbnail shadow"
+                    style={{
+                      width: "180px",
+                      height: "180px",
+                      objectFit: "cover",
+                    }}
+                  />
+                ) : (
+                  <div
+                    className="rounded-circle bg-primary bg-opacity-10 d-flex align-items-center justify-content-center shadow"
+                    style={{
+                      width: "180px",
+                      height: "180px",
+                      margin: "0 auto",
+                    }}
+                  >
+                    <i
+                      className="bi bi-person-fill text-primary"
+                      style={{ fontSize: "5rem" }}
+                    ></i>
+                  </div>
+                )}
+              </div>
+
+              <div className="card border-0 bg-light mb-4">
+                <div className="card-body">
+                  <h4 className="mb-1">{name || "Not set"}</h4>
+                  <p className="text-muted mb-2">{email || "Not set"}</p>
+                  <div className="d-flex gap-2 justify-content-center mb-2">
+                    <span className="badge bg-primary">{role}</span>
+                    {branch && (
+                      <span className="badge bg-secondary">
+                        {branch} Branch
+                      </span>
+                    )}
+                  </div>
+                  {specialization && (
+                    <p className="text-muted mb-0 mt-2 small">
+                      <i className="bi bi-book me-1"></i> {specialization}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Profile Completion */}
+              <div className="card border-0 bg-light">
+                <div className="card-body">
+                  <h6 className="mb-3">Profile Completion</h6>
+                  <div className="progress mb-2" style={{ height: "10px" }}>
+                    <div
+                      className="progress-bar bg-success"
+                      role="progressbar"
+                      style={{
+                        width: `${
+                          ([
+                            name,
+                            email,
+                            role,
+                            branch,
+                            age,
+                            phone,
+                            address,
+                            specialization,
+                            qualifications,
+                            experience,
+                            bio,
+                            profileImage,
+                          ].filter(Boolean).length *
+                            100) /
+                          12
+                        }%`,
+                      }}
+                    ></div>
+                  </div>
+                  <p className="small text-muted mb-0">
+                    Complete your profile to improve visibility among students
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="col-lg-8 col-md-7">
+              <div className="card border-0 shadow-sm mb-4">
+                <div className="card-body">
+                  <h5 className="card-title mb-3">
+                    <i className="bi bi-person text-primary me-2"></i>
+                    Contact Information
+                  </h5>
+                  <div className="row mb-3">
+                    <div className="col-md-6">
+                      <p className="mb-1 text-muted">
+                        <i className="bi bi-telephone me-2"></i>Phone
+                      </p>
+                      <p className="mb-3 fw-medium">{phone || "Not set"}</p>
+                    </div>
+                    <div className="col-md-6">
+                      <p className="mb-1 text-muted">
+                        <i className="bi bi-geo-alt me-2"></i>Address
+                      </p>
+                      <p className="mb-3 fw-medium">{address || "Not set"}</p>
+                    </div>
+                  </div>
+                  <div className="mb-0">
+                    <p className="mb-1 text-muted">
+                      <i className="bi bi-calendar me-2"></i>Age
+                    </p>
+                    <p className="mb-0 fw-medium">{age || "Not set"}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="card border-0 shadow-sm">
+                <div className="card-body">
+                  <h5 className="card-title mb-3">
+                    <i className="bi bi-mortarboard text-primary me-2"></i>
+                    Academic Information
+                  </h5>
+
+                  <div className="mb-3">
+                    <p className="mb-1 text-muted">
+                      <i className="bi bi-book me-2"></i>Specialization
+                    </p>
+                    <p className="mb-3 fw-medium">
+                      {specialization || "Not set"}
+                    </p>
+                  </div>
+
+                  <div className="mb-3">
+                    <p className="mb-1 text-muted">
+                      <i className="bi bi-award me-2"></i>Qualifications
+                    </p>
+                    <p className="mb-3 fw-medium">
+                      {qualifications || "Not set"}
+                    </p>
+                  </div>
+
+                  <div className="mb-3">
+                    <p className="mb-1 text-muted">
+                      <i className="bi bi-briefcase me-2"></i>Teaching
+                      Experience
+                    </p>
+                    <p className="mb-3 fw-medium">{experience || "Not set"}</p>
+                  </div>
+
+                  {bio && (
+                    <div className="mb-0">
+                      <p className="mb-1 text-muted">
+                        <i className="bi bi-person-badge me-2"></i>Bio
+                      </p>
+                      <p className="mb-0 fw-medium">{bio}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 

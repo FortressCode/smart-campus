@@ -18,6 +18,7 @@ import LecturerDashboard from "./components/LecturerDashboard";
 import StudentDashboard from "./components/StudentDashboard";
 import Unauthorized from "./components/Unauthorized";
 import Notification from "./components/Notification";
+import ConfirmDialog from "./components/ConfirmDialog";
 
 function App() {
   return (
@@ -74,6 +75,7 @@ function App() {
             <Route path="*" element={<Navigate to="/login" />} />
           </Routes>
           <Notification />
+          <ConfirmDialog />
         </NotificationProvider>
       </AuthProvider>
     </Router>
