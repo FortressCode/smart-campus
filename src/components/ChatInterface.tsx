@@ -1,36 +1,44 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { useChat } from '../contexts/ChatContext';
-import { useAuth } from '../contexts/AuthContext';
-import moment from 'moment';
+import React, { useState, useRef, useEffect } from "react";
+import { useChat } from "../contexts/ChatContext";
+import { useAuth } from "../contexts/AuthContext";
+import moment from "moment";
+
+// Custom CSS for the clickable div that replaces the button
+const clickableItemStyle: React.CSSProperties = {
+  cursor: "pointer",
+  userSelect: "none",
+};
 
 const ChatInterface: React.FC = () => {
-  const { 
-    chatGroups, 
-    currentChatGroup, 
-    messages, 
-    setChatGroup, 
-    sendMessage, 
+  const {
+    chatGroups,
+    currentChatGroup,
+    messages,
+    setChatGroup,
+    sendMessage,
     uploadFile,
     deleteGroupChat,
-    userCanUploadFiles
+    userCanUploadFiles,
   } = useChat();
   const { currentUser, getUserRole } = useAuth();
-  const [newMessage, setNewMessage] = useState('');
+  const [newMessage, setNewMessage] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(
+    null
+  );
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Scroll to bottom of messages when messages change
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (newMessage.trim()) {
       sendMessage(newMessage.trim());
-      setNewMessage('');
+      setNewMessage("");
     }
   };
 
@@ -39,7 +47,7 @@ const ChatInterface: React.FC = () => {
       await uploadFile(selectedFile);
       setSelectedFile(null);
       if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+        fileInputRef.current.value = "";
       }
     }
   };
@@ -63,58 +71,72 @@ const ChatInterface: React.FC = () => {
     setShowDeleteConfirm(null);
   };
 
-  const isLecturer = getUserRole() === 'lecturer';
+  const isLecturer = getUserRole() === "lecturer";
 
   // Format timestamp
   const formatTime = (timestamp: number) => {
-    return moment(timestamp).format('MMM D, YYYY h:mm A');
+    return moment(timestamp).format("MMM D, YYYY h:mm A");
   };
 
   return (
     <div className="container-fluid p-0">
       <div className="row g-0">
         {/* Chat Groups Sidebar */}
-        <div className="col-md-3 border-end" style={{ height: '80vh' }}>
+        <div className="col-md-3 border-end" style={{ height: "80vh" }}>
           <div className="p-3 bg-light">
             <h5 className="mb-3">Course Chats</h5>
             <div className="list-group">
               {chatGroups.length > 0 ? (
-                chatGroups.map(group => (
+                chatGroups.map((group) => (
                   <div key={group.id} className="position-relative mb-2">
-                    <button
-                      className={`list-group-item list-group-item-action d-flex justify-content-between align-items-start ${currentChatGroup?.id === group.id ? 'active' : ''}`}
+                    <div
+                      className={`list-group-item list-group-item-action d-flex justify-content-between align-items-start ${
+                        currentChatGroup?.id === group.id ? "active" : ""
+                      }`}
                       onClick={() => setChatGroup(group)}
+                      role="button"
+                      tabIndex={0}
+                      style={clickableItemStyle}
+                      onKeyPress={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          setChatGroup(group);
+                        }
+                      }}
                     >
                       <div className="w-100 me-2 chat-group-name">
                         {group.courseName}
                       </div>
                       {isLecturer && (
-                        <button 
-                          type="button" 
-                          className={`btn btn-sm ${currentChatGroup?.id === group.id ? 'btn-light' : 'btn-outline-danger'}`}
+                        <button
+                          type="button"
+                          className={`btn btn-sm ${
+                            currentChatGroup?.id === group.id
+                              ? "btn-light"
+                              : "btn-outline-danger"
+                          }`}
                           onClick={(e) => {
-                            e.stopPropagation(); 
+                            e.stopPropagation();
                             handleDeleteConfirm(group.id);
                           }}
                         >
                           <i className="bi bi-trash"></i>
                         </button>
                       )}
-                    </button>
-                    
+                    </div>
+
                     {/* Delete confirmation */}
                     {showDeleteConfirm === group.id && (
                       <div className="position-absolute top-100 start-0 end-0 bg-white border rounded shadow p-2 z-index-dropdown mt-1">
                         <p className="mb-2 small">Delete this chat group?</p>
                         <div className="d-flex justify-content-between">
-                          <button 
-                            className="btn btn-sm btn-danger" 
+                          <button
+                            className="btn btn-sm btn-danger"
                             onClick={() => handleDeleteGroup(group.id)}
                           >
                             Delete
                           </button>
-                          <button 
-                            className="btn btn-sm btn-secondary" 
+                          <button
+                            className="btn btn-sm btn-secondary"
                             onClick={handleDeleteCancel}
                           >
                             Cancel
@@ -132,14 +154,14 @@ const ChatInterface: React.FC = () => {
         </div>
 
         {/* Chat Area */}
-        <div className="col-md-9 d-flex flex-column" style={{ height: '80vh' }}>
+        <div className="col-md-9 d-flex flex-column" style={{ height: "80vh" }}>
           {currentChatGroup ? (
             <>
               {/* Chat Header */}
               <div className="p-3 bg-light border-bottom d-flex justify-content-between align-items-center">
                 <h5 className="mb-0">{currentChatGroup.courseName} Chat</h5>
                 {isLecturer && (
-                  <button 
+                  <button
                     className="btn btn-outline-danger btn-sm"
                     onClick={() => handleDeleteConfirm(currentChatGroup.id)}
                   >
@@ -150,42 +172,55 @@ const ChatInterface: React.FC = () => {
               </div>
 
               {/* Messages Area */}
-              <div className="flex-grow-1 p-3 overflow-auto" style={{ maxHeight: 'calc(80vh - 130px)' }}>
+              <div
+                className="flex-grow-1 p-3 overflow-auto"
+                style={{ maxHeight: "calc(80vh - 130px)" }}
+              >
                 {messages.length > 0 ? (
-                  messages.map(msg => {
+                  messages.map((msg) => {
                     const isCurrentUser = currentUser?.uid === msg.senderId;
                     return (
-                      <div 
-                        key={msg.id} 
-                        className={`mb-3 d-flex ${isCurrentUser ? 'justify-content-end' : 'justify-content-start'}`}
+                      <div
+                        key={msg.id}
+                        className={`mb-3 d-flex ${
+                          isCurrentUser
+                            ? "justify-content-end"
+                            : "justify-content-start"
+                        }`}
                       >
-                        <div 
-                          className={`p-3 rounded-3 ${isCurrentUser ? 'bg-primary text-white' : 'bg-light'}`}
-                          style={{ maxWidth: '75%' }}
+                        <div
+                          className={`p-3 rounded-3 ${
+                            isCurrentUser ? "bg-primary text-white" : "bg-light"
+                          }`}
+                          style={{ maxWidth: "75%" }}
                         >
                           <div className="small mb-1">
-                            <strong>{isCurrentUser ? 'You' : msg.senderName}</strong> 
+                            <strong>
+                              {isCurrentUser ? "You" : msg.senderName}
+                            </strong>
                             <span className="ms-2 text-opacity-75">
                               ({msg.senderRole})
                             </span>
                           </div>
                           <div>{msg.message}</div>
-                          
+
                           {/* File attachment link */}
                           {msg.fileUrl && (
                             <div className="mt-2">
-                              <a 
-                                href={msg.fileUrl} 
-                                target="_blank" 
-                                rel="noopener noreferrer" 
-                                className={`btn btn-sm ${isCurrentUser ? 'btn-light' : 'btn-primary'}`}
+                              <a
+                                href={msg.fileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`btn btn-sm ${
+                                  isCurrentUser ? "btn-light" : "btn-primary"
+                                }`}
                               >
                                 <i className="bi bi-file-earmark me-1"></i>
                                 {msg.fileName}
                               </a>
                             </div>
                           )}
-                          
+
                           <div className="small mt-1 text-opacity-75">
                             {formatTime(msg.timestamp)}
                           </div>
@@ -203,7 +238,10 @@ const ChatInterface: React.FC = () => {
 
               {/* Message Input */}
               <div className="p-3 border-top">
-                <form onSubmit={handleSendMessage} className="d-flex flex-column">
+                <form
+                  onSubmit={handleSendMessage}
+                  className="d-flex flex-column"
+                >
                   <div className="d-flex">
                     <input
                       type="text"
@@ -216,7 +254,7 @@ const ChatInterface: React.FC = () => {
                       <i className="bi bi-send"></i>
                     </button>
                   </div>
-                  
+
                   {/* File Upload (Lecturers Only) */}
                   {userCanUploadFiles && (
                     <div className="mt-2 d-flex align-items-center">
@@ -252,4 +290,4 @@ const ChatInterface: React.FC = () => {
   );
 };
 
-export default ChatInterface; 
+export default ChatInterface;
