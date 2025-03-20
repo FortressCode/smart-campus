@@ -17,6 +17,7 @@ import { db } from "../firebase";
 import MaterialsViewer from "./MaterialsViewer";
 import ChatInterface from "./ChatInterface";
 import ChatManagement from "./ChatManagement";
+import EmailService from "./EmailService";
 
 // Define Schedule interface
 interface Schedule {
@@ -288,6 +289,8 @@ export default function LecturerDashboard() {
         return renderChatSection();
       case "profile":
         return renderProfileSection();
+      case "email":
+        return renderEmailSection();
       default:
         return renderDashboardSection();
     }
@@ -807,6 +810,18 @@ export default function LecturerDashboard() {
           </div>
         </div>
       )}
+    </div>
+  );
+
+  // Email section
+  const renderEmailSection = () => (
+    <div className="slide-in section-content">
+      <div className="section-title mb-4">
+        <i className="bi bi-envelope"></i>
+        Email Students
+      </div>
+      
+      <EmailService />
     </div>
   );
 
@@ -1362,68 +1377,79 @@ export default function LecturerDashboard() {
         </div>
 
         <div className="admin-sidebar-body">
-          <div
-            className={`admin-menu-item ${
-              activeSection === "dashboard" ? "active" : ""
-            }`}
-            onClick={() => setActiveSection("dashboard")}
-          >
-            <i className="bi bi-speedometer2"></i>
-            <span>Dashboard</span>
-          </div>
-          <div
-            className={`admin-menu-item ${
-              activeSection === "classes" ? "active" : ""
-            }`}
-            onClick={() => setActiveSection("classes")}
-          >
-            <i className="bi bi-mortarboard"></i>
-            <span>My Classes</span>
-          </div>
-          <div
-            className={`admin-menu-item ${
-              activeSection === "materials" ? "active" : ""
-            }`}
-            onClick={() => setActiveSection("materials")}
-          >
-            <i className="bi bi-file-earmark-text"></i>
-            <span>Materials</span>
-          </div>
-          <div
-            className={`admin-menu-item ${
-              activeSection === "bookings" ? "active" : ""
-            }`}
-            onClick={() => setActiveSection("bookings")}
-          >
-            <i className="bi bi-calendar2-plus"></i>
-            <span>Bookings</span>
-          </div>
-          <div
-            className={`admin-menu-item ${
-              activeSection === "students" ? "active" : ""
-            }`}
-            onClick={() => setActiveSection("students")}
-          >
-            <i className="bi bi-people"></i>
-            <span>Students</span>
-          </div>
-          <div
-            className={`admin-menu-item ${
-              activeSection === "chat" ? "active" : ""
-            }`}
-            onClick={() => setActiveSection("chat")}
-          >
-            <i className="bi bi-chat-dots"></i>
-            <span>Course Chat</span>
-          </div>
-          <div
-            className={`admin-menu-item ${
-              activeSection === "profile" ? "active" : ""
-            }`}
-            onClick={() => setActiveSection("profile")}
-          >
-            <i className="bi bi-person-circle"></i>
-            <span>Profile</span>
+          <div className="admin-menu">
+            <div
+              className={`admin-menu-item ${
+                activeSection === "dashboard" ? "active" : ""
+              }`}
+              onClick={() => setActiveSection("dashboard")}
+            >
+              <i className="bi bi-speedometer2"></i>
+              <span>Dashboard</span>
+            </div>
+            <div
+              className={`admin-menu-item ${
+                activeSection === "classes" ? "active" : ""
+              }`}
+              onClick={() => setActiveSection("classes")}
+            >
+              <i className="bi bi-mortarboard"></i>
+              <span>My Classes</span>
+            </div>
+            <div
+              className={`admin-menu-item ${
+                activeSection === "materials" ? "active" : ""
+              }`}
+              onClick={() => setActiveSection("materials")}
+            >
+              <i className="bi bi-file-earmark-text"></i>
+              <span>Materials</span>
+            </div>
+            <div
+              className={`admin-menu-item ${
+                activeSection === "bookings" ? "active" : ""
+              }`}
+              onClick={() => setActiveSection("bookings")}
+            >
+              <i className="bi bi-calendar2-plus"></i>
+              <span>Bookings</span>
+            </div>
+            <div
+              className={`admin-menu-item ${
+                activeSection === "students" ? "active" : ""
+              }`}
+              onClick={() => setActiveSection("students")}
+            >
+              <i className="bi bi-people"></i>
+              <span>Students</span>
+            </div>
+            <div
+              className={`admin-menu-item ${
+                activeSection === "chat" ? "active" : ""
+              }`}
+              onClick={() => setActiveSection("chat")}
+            >
+              <i className="bi bi-chat-dots"></i>
+              <span>Course Chat</span>
+            </div>
+            <div
+              className={`admin-menu-item ${
+                activeSection === "email" ? "active" : ""
+              }`}
+              onClick={() => setActiveSection("email")}
+            >
+              <i className="bi bi-envelope"></i>
+              <span>Email</span>
+            </div>
+            <div
+              className={`admin-menu-item ${
+                activeSection === "profile" ? "active" : ""
+              }`}
+              onClick={() => setActiveSection("profile")}
+            >
+              <i className="bi bi-person-circle"></i>
+              <span>Profile</span>
+            </div>
           </div>
         </div>
 
