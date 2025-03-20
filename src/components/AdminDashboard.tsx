@@ -1608,33 +1608,18 @@ export default function AdminDashboard() {
         throw new Error(result.error);
       }
 
-      // Refresh user list
-      const usersCollection = collection(db, "users");
-      const userSnapshot = await getDocs(usersCollection);
-      const userList = userSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setUsers(userList);
-
-      // Reset form and close modal
+      // Reset form and show success message
       setNewUserName("");
       setNewUserEmail("");
       setNewUserPassword("");
       setNewUserRole("student");
       setShowAddUserModal(false);
-
-      // Show success message
-      setSuccess(`User ${newUserName} added successfully`);
-      showNotification(`User ${newUserName} added successfully`);
-
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        setSuccess("");
-      }, 3000);
-    } catch (err: any) {
-      setAddUserError(err.message || "Failed to add user");
-      console.error(err);
+      showNotification("User created successfully");
+      
+      // Refresh user list
+      fetchUsers();
+    } catch (error: any) {
+      setAddUserError(error.message);
     } finally {
       setIsAddingUser(false);
     }
