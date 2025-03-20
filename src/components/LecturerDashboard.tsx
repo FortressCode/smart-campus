@@ -15,6 +15,8 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase";
 import MaterialsViewer from "./MaterialsViewer";
+import ChatInterface from "./ChatInterface";
+import ChatManagement from "./ChatManagement";
 
 // Define Schedule interface
 interface Schedule {
@@ -282,6 +284,8 @@ export default function LecturerDashboard() {
         return renderBookingsSection();
       case "students":
         return renderStudentsSection();
+      case "chat":
+        return renderChatSection();
       case "profile":
         return renderProfileSection();
       default:
@@ -1185,6 +1189,28 @@ export default function LecturerDashboard() {
     </div>
   );
 
+  // Chat Section
+  const renderChatSection = () => (
+    <div className="slide-in section-content">
+      <div className="section-title mb-4">
+        <i className="bi bi-chat-dots"></i>
+        Course Chat
+      </div>
+      <div className="row">
+        <div className="col-md-12 mb-4">
+          <ChatManagement />
+        </div>
+        <div className="col-md-12">
+          <div className="card">
+            <div className="card-body p-0">
+              <ChatInterface />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   // Students section
   const renderStudentsSection = () => (
     <div className="slide-in section-content">
@@ -1380,6 +1406,15 @@ export default function LecturerDashboard() {
           >
             <i className="bi bi-people"></i>
             <span>Students</span>
+          </div>
+          <div
+            className={`admin-menu-item ${
+              activeSection === "chat" ? "active" : ""
+            }`}
+            onClick={() => setActiveSection("chat")}
+          >
+            <i className="bi bi-chat-dots"></i>
+            <span>Course Chat</span>
           </div>
           <div
             className={`admin-menu-item ${

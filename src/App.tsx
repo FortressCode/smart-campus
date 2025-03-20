@@ -7,6 +7,7 @@ import {
 } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
+import { ChatProvider } from "./contexts/ChatContext";
 import Login from "./components/Login";
 import Signup from "./components/Signup";
 import Dashboard from "./components/Dashboard";
@@ -26,58 +27,60 @@ function App() {
     <Router>
       <AuthProvider>
         <NotificationProvider>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
-            <Route path="/unauthorized" element={<Unauthorized />} />
+          <ChatProvider>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
+              <Route path="/unauthorized" element={<Unauthorized />} />
 
-            {/* Role-based routes */}
-            <Route
-              path="/admin"
-              element={
-                <RoleBasedRoute allowedRoles={["admin"]}>
-                  <AdminDashboard />
-                </RoleBasedRoute>
-              }
-            />
+              {/* Role-based routes */}
+              <Route
+                path="/admin"
+                element={
+                  <RoleBasedRoute allowedRoles={["admin"]}>
+                    <AdminDashboard />
+                  </RoleBasedRoute>
+                }
+              />
 
-            <Route
-              path="/lecturer"
-              element={
-                <RoleBasedRoute allowedRoles={["lecturer"]}>
-                  <LecturerDashboard />
-                </RoleBasedRoute>
-              }
-            />
+              <Route
+                path="/lecturer"
+                element={
+                  <RoleBasedRoute allowedRoles={["lecturer"]}>
+                    <LecturerDashboard />
+                  </RoleBasedRoute>
+                }
+              />
 
-            <Route
-              path="/student"
-              element={
-                <RoleBasedRoute allowedRoles={["student"]}>
-                  <StudentDashboard />
-                </RoleBasedRoute>
-              }
-            />
+              <Route
+                path="/student"
+                element={
+                  <RoleBasedRoute allowedRoles={["student"]}>
+                    <StudentDashboard />
+                  </RoleBasedRoute>
+                }
+              />
 
-            <Route
-              path="/profile"
-              element={
-                <RoleBasedRoute allowedRoles={["admin", "lecturer", "student"]}>
-                  <ProfileManagement />
-                </RoleBasedRoute>
-              }
-            />
+              <Route
+                path="/profile"
+                element={
+                  <RoleBasedRoute allowedRoles={["admin", "lecturer", "student"]}>
+                    <ProfileManagement />
+                  </RoleBasedRoute>
+                }
+              />
 
-            {/* Legacy dashboard route - will redirect based on role */}
-            <Route path="/dashboard" element={<Dashboard />} />
+              {/* Legacy dashboard route - will redirect based on role */}
+              <Route path="/dashboard" element={<Dashboard />} />
 
-            {/* Default redirect to login */}
-            <Route path="/" element={<Navigate to="/login" />} />
-            <Route path="*" element={<Navigate to="/login" />} />
-          </Routes>
-          <Notification />
-          <ConfirmDialog />
-          <AutomatedNotification />
+              {/* Default redirect to login */}
+              <Route path="/" element={<Navigate to="/login" />} />
+              <Route path="*" element={<Navigate to="/login" />} />
+            </Routes>
+            <Notification />
+            <ConfirmDialog />
+            <AutomatedNotification />
+          </ChatProvider>
         </NotificationProvider>
       </AuthProvider>
     </Router>
