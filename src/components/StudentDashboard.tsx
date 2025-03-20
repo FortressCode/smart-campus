@@ -14,7 +14,6 @@ import {
   getDoc,
 } from "firebase/firestore";
 import { db } from "../firebase";
-import MaterialsViewer from "./MaterialsViewer";
 
 // Define Schedule interface
 interface Schedule {
@@ -55,14 +54,6 @@ interface Enrollment {
   status: string;
 }
 
-// Define Module interface
-interface Module {
-  id: string;
-  title: string;
-  description: string;
-  // Add any other necessary properties
-}
-
 export default function StudentDashboard() {
   const { userData, logout, currentUser } = useAuth();
   const { showNotification } = useNotification();
@@ -74,8 +65,6 @@ export default function StudentDashboard() {
   const [schedulesLoading, setSchedulesLoading] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
   // Courses state
   const [enrolledCourses, setEnrolledCourses] = useState<
@@ -97,11 +86,6 @@ export default function StudentDashboard() {
   // Logo URL for collapsed sidebar
   const logoUrl =
     "https://png.pngtree.com/png-vector/20220922/ourmid/pngtree-letter-v-icon-png-image_6210719.png";
-
-  // New state for student modules and schedules
-  const [studentModules, setStudentModules] = useState<Module[]>([]);
-  const [modulesLoading, setModulesLoading] = useState<boolean>(true);
-  const [studentSchedules, setStudentSchedules] = useState<Schedule[]>([]);
 
   // Function to toggle sidebar
   const toggleSidebar = () => {
@@ -201,106 +185,12 @@ export default function StudentDashboard() {
 
         if (validCourses.length > 0) {
           showNotification(`Found ${validCourses.length} enrolled courses`);
-
-          // After getting courses, fetch the modules for these courses
-          await fetchStudentModules(validCourses);
         }
       } catch (err) {
         console.error("Error fetching enrolled courses:", err);
         showNotification("Failed to load your enrolled courses");
       } finally {
         setCoursesLoading(false);
-      }
-    }
-
-    // Fetch modules for the student's enrolled courses
-    async function fetchStudentModules(
-      courses: (Course & { enrollment: Enrollment })[]
-    ) {
-      try {
-        setModulesLoading(true);
-
-        // Get all module IDs from the enrolled courses
-        const moduleIds: string[] = [];
-        courses.forEach((course) => {
-          if (course.modules && Array.isArray(course.modules)) {
-            moduleIds.push(...course.modules);
-          }
-        });
-
-        if (moduleIds.length === 0) {
-          setModulesLoading(false);
-          return;
-        }
-
-        // Fetch module details
-        const modulesData: Module[] = [];
-
-        // Fetch in batches of 10 due to Firestore limitations
-        const batchSize = 10;
-        for (let i = 0; i < moduleIds.length; i += batchSize) {
-          const batch = moduleIds.slice(i, i + batchSize);
-
-          const modulesCollection = collection(db, "modules");
-          const modulesQuery = query(
-            modulesCollection,
-            where("id", "in", batch)
-          );
-
-          try {
-            const moduleSnapshot = await getDocs(modulesQuery);
-            const batchModules = moduleSnapshot.docs.map(
-              (doc) =>
-                ({
-                  id: doc.id,
-                  ...doc.data(),
-                } as Module)
-            );
-
-            modulesData.push(...batchModules);
-          } catch (error) {
-            console.error("Error fetching module batch:", error);
-          }
-        }
-
-        setStudentModules(modulesData);
-
-        // After getting modules, fetch class schedules for these modules
-        await fetchClassSchedulesForModules(modulesData);
-      } catch (err) {
-        console.error("Error fetching student modules:", err);
-      } finally {
-        setModulesLoading(false);
-      }
-    }
-
-    // Fetch class schedules for the student's modules
-    async function fetchClassSchedulesForModules(modules: Module[]) {
-      try {
-        if (modules.length === 0) return;
-
-        const schedulesCollection = collection(db, "schedules");
-        const scheduleSnapshot = await getDocs(schedulesCollection);
-
-        const allSchedules = scheduleSnapshot.docs.map(
-          (doc) =>
-            ({
-              id: doc.id,
-              ...doc.data(),
-            } as Schedule)
-        );
-
-        // Filter schedules for the student's modules
-        const relevantSchedules = allSchedules.filter((schedule) => {
-          return modules.some(
-            (module) => schedule.moduleTitle === module.title
-          );
-        });
-
-        setStudentSchedules(relevantSchedules);
-        console.log("Student's class schedules:", relevantSchedules);
-      } catch (err) {
-        console.error("Error fetching class schedules:", err);
       }
     }
 
@@ -381,7 +271,7 @@ export default function StudentDashboard() {
     }
   };
 
-  // Render content based on active section
+  // Render different sections based on activeSection
   const renderContent = () => {
     switch (activeSection) {
       case "dashboard":
@@ -593,67 +483,11 @@ export default function StudentDashboard() {
         My Classes
       </div>
 
-      {schedulesLoading || modulesLoading ? (
-        <div className="text-center py-5">
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
-          <p className="mt-3 text-muted">Loading your classes...</p>
-        </div>
-      ) : studentSchedules.length === 0 ? (
-        <div className="text-center py-5">
-          <i className="bi bi-calendar-x fs-1 text-muted"></i>
-          <p className="mt-3 text-muted">
-            No classes found for your enrolled courses
-          </p>
-        </div>
-      ) : (
-        <div className="row g-4">
-          {studentSchedules.map((schedule) => (
-            <div className="col-md-6 col-xl-4" key={schedule.id}>
-              <div className="dashboard-card h-100">
-                <div className="d-flex justify-content-between mb-3">
-                  <div
-                    className="bg-primary bg-opacity-10 rounded-circle p-2"
-                    style={{ width: "48px", height: "48px" }}
-                  >
-                    <i className="bi bi-calendar-check fs-4 text-primary"></i>
-                  </div>
-                  <span className="badge bg-primary">{schedule.dayOfWeek}</span>
-                </div>
-                <h5 className="card-title mb-1">{schedule.moduleTitle}</h5>
-                <p className="text-muted small mb-3">
-                  <i className="bi bi-person me-1"></i>
-                  {schedule.lecturerName}
-                </p>
-                <div className="d-flex justify-content-between align-items-center mb-2">
-                  <span className="text-muted small">
-                    <i className="bi bi-clock me-1"></i>
-                    {schedule.startTime} - {schedule.endTime}
-                  </span>
-                  <span className="text-muted small">
-                    <i className="bi bi-geo-alt me-1"></i>
-                    {schedule.floorNumber}-{schedule.classroomNumber}
-                  </span>
-                </div>
-                <div className="d-flex mt-3">
-                  <button
-                    className="btn btn-sm btn-outline-primary w-100"
-                    onClick={() => {
-                      showNotification(
-                        `Added ${schedule.moduleTitle} to calendar`
-                      );
-                    }}
-                  >
-                    <i className="bi bi-calendar-plus me-1"></i>
-                    Add to Calendar
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Class content would go here */}
+      <div className="text-center py-5">
+        <i className="bi bi-calendar-check fs-1 text-muted"></i>
+        <p className="mt-3 text-muted">Your class schedule will appear here</p>
+      </div>
     </div>
   );
 
@@ -662,7 +496,7 @@ export default function StudentDashboard() {
     <div className="slide-in section-content">
       <div className="section-title mb-4">
         <i className="bi bi-book"></i>
-        My Courses
+        My Enrolled Courses
       </div>
 
       {coursesLoading ? (
@@ -674,71 +508,58 @@ export default function StudentDashboard() {
         </div>
       ) : enrolledCourses.length === 0 ? (
         <div className="text-center py-5">
-          <i className="bi bi-mortarboard fs-1 text-muted"></i>
+          <i className="bi bi-book fs-1 text-muted"></i>
           <p className="mt-3 text-muted">
             You are not enrolled in any courses yet
           </p>
         </div>
       ) : (
-        <div className="row g-4">
-          {enrolledCourses.map((course) => (
-            <div className="col-md-6 col-xl-4" key={course.id}>
-              <div className="dashboard-card h-100">
-                <div className="d-flex justify-content-between mb-3">
-                  <div
-                    className="bg-primary bg-opacity-10 rounded-circle p-2"
-                    style={{ width: "48px", height: "48px" }}
-                  >
-                    <i
-                      className="bi bi-book fs-4 text-primary"
-                      style={{ display: "block", margin: "0 auto" }}
-                    ></i>
-                  </div>
-                  <span className="badge rounded-pill bg-primary bg-opacity-10 text-primary align-self-start">
-                    {course.enrollment.status}
-                  </span>
-                </div>
-
-                <h5 className="mb-2">{course.title}</h5>
-                <p className="text-muted small mb-3">
-                  <strong>Code:</strong> {course.code} •{" "}
-                  <strong>Credits:</strong> {course.credits}
-                </p>
-
-                <div className="small mb-3 d-flex">
-                  <div className="me-4">
-                    <i className="bi bi-calendar-check me-1"></i>
-                    {course.enrollment.academicYear}
-                  </div>
-                  <div>
-                    <i className="bi bi-grid me-1"></i>
-                    Semester {course.enrollment.semester}
-                  </div>
-                </div>
-
-                <p className="text-truncate mb-3" title={course.description}>
-                  {course.description}
-                </p>
-
-                <div className="d-flex gap-2 mt-auto">
-                  <button className="btn btn-sm btn-outline-primary flex-grow-1">
-                    View Details
-                  </button>
-                  <button
-                    className="btn btn-sm btn-outline-success flex-grow-1"
-                    onClick={() => {
-                      setActiveSection("materials");
-                      // Store the course ID to filter materials
-                      localStorage.setItem("viewingCourseId", course.id);
-                    }}
-                  >
-                    <i className="bi bi-file-earmark-text me-1"></i>
-                    Materials
-                  </button>
-                </div>
-              </div>
+        <div className="card shadow-sm border-0">
+          <div className="card-body p-0">
+            <div className="table-responsive">
+              <table className="table table-hover mb-0">
+                <thead className="table-light">
+                  <tr>
+                    <th>Course</th>
+                    <th>Department</th>
+                    <th>Level</th>
+                    <th>Credits</th>
+                    <th>Academic Year</th>
+                    <th>Semester</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {enrolledCourses.map((course) => (
+                    <tr key={course.id}>
+                      <td>
+                        <div className="d-flex flex-column">
+                          <span className="fw-medium">{course.title}</span>
+                          <small className="text-muted">{course.code}</small>
+                        </div>
+                      </td>
+                      <td>{course.department}</td>
+                      <td>{course.level}</td>
+                      <td>{course.credits}</td>
+                      <td>{course.enrollment.academicYear}</td>
+                      <td>{course.enrollment.semester}</td>
+                      <td>
+                        <span
+                          className={`badge bg-${
+                            course.enrollment.status === "Active"
+                              ? "success"
+                              : "warning"
+                          }`}
+                        >
+                          {course.enrollment.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          ))}
+          </div>
         </div>
       )}
     </div>
@@ -748,11 +569,17 @@ export default function StudentDashboard() {
   const renderMaterialsSection = () => (
     <div className="slide-in section-content">
       <div className="section-title mb-4">
-        <i className="bi bi-file-earmark-text"></i>
+        <i className="bi bi-folder"></i>
         Learning Materials
       </div>
 
-      <MaterialsViewer role="student" />
+      {/* Materials content would go here */}
+      <div className="text-center py-5">
+        <i className="bi bi-folder fs-1 text-muted"></i>
+        <p className="mt-3 text-muted">
+          Your learning materials will appear here
+        </p>
+      </div>
     </div>
   );
 
@@ -1154,7 +981,7 @@ export default function StudentDashboard() {
     </div>
   );
 
-  // Main component render
+  // Main return of the component
   return (
     <div className="admin-layout">
       {/* Sidebar */}
@@ -1291,35 +1118,6 @@ export default function StudentDashboard() {
             </ul>
           </div>
         </div>
-
-        {/* Success/Error Alerts */}
-        {error && (
-          <div
-            className="alert alert-danger mb-4 alert-dismissible fade show"
-            role="alert"
-          >
-            {error}
-            <button
-              type="button"
-              className="btn-close"
-              onClick={() => setError("")}
-            ></button>
-          </div>
-        )}
-
-        {success && (
-          <div
-            className="alert alert-success mb-4 alert-dismissible fade show"
-            role="alert"
-          >
-            {success}
-            <button
-              type="button"
-              className="btn-close"
-              onClick={() => setSuccess("")}
-            ></button>
-          </div>
-        )}
 
         {/* Welcome header */}
         <div className="mb-4">
