@@ -57,19 +57,59 @@ interface Course {
 }
 
 // Keep track of notifications we've already shown to prevent duplicates
-const notificationStore: Record<string, boolean> = {};
+// Now with timestamps for cleanup
+interface NotificationEntry {
+  shown: boolean;
+  timestamp: number;
+}
 
 const AutomatedNotification: React.FC = () => {
   const { userData, currentUser } = useAuth();
   const { showNotification } = useNotification();
   const [initialized, setInitialized] = useState(false);
+  const [notificationStore, setNotificationStore] = useState<
+    Record<string, NotificationEntry>
+  >({});
+
+  // Clean up old notification entries - run periodically
+  useEffect(() => {
+    const cleanupInterval = setInterval(() => {
+      const now = Date.now();
+      const ONE_DAY = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+
+      setNotificationStore((prevStore) => {
+        const newStore = { ...prevStore };
+        let hasChanges = false;
+
+        // Remove entries older than 24 hours
+        Object.keys(newStore).forEach((key) => {
+          if (now - newStore[key].timestamp > ONE_DAY) {
+            delete newStore[key];
+            hasChanges = true;
+          }
+        });
+
+        // Only update state if we actually removed something
+        return hasChanges ? newStore : prevStore;
+      });
+    }, 60 * 60 * 1000); // Run cleanup every hour
+
+    return () => clearInterval(cleanupInterval);
+  }, []);
 
   // Use this function to check if we've already shown a specific notification
   const checkAndSetNotified = (id: string): boolean => {
-    if (notificationStore[id]) {
+    // Check if notification exists and has been shown
+    if (notificationStore[id]?.shown) {
       return true; // Already notified
     }
-    notificationStore[id] = true;
+
+    // Set the notification as shown with current timestamp
+    setNotificationStore((prevStore) => ({
+      ...prevStore,
+      [id]: { shown: true, timestamp: Date.now() },
+    }));
+
     return false; // Not previously notified
   };
 
@@ -181,7 +221,7 @@ const AutomatedNotification: React.FC = () => {
     return () => {
       unsubscribeEvents();
     };
-  }, [currentUser, userData, showNotification]);
+  }, [currentUser, userData, showNotification, notificationStore]);
 
   // Listen for schedules relevant to the user's role
   useEffect(() => {
@@ -389,7 +429,7 @@ const AutomatedNotification: React.FC = () => {
     return () => {
       unsubscribeSchedules();
     };
-  }, [currentUser, userData, showNotification]);
+  }, [currentUser, userData, showNotification, notificationStore]);
 
   // Listen for course changes (especially for students and teachers)
   useEffect(() => {
@@ -439,7 +479,7 @@ const AutomatedNotification: React.FC = () => {
     return () => {
       unsubscribeCourses();
     };
-  }, [currentUser, userData, showNotification]);
+  }, [currentUser, userData, showNotification, notificationStore]);
 
   // Empty component as this works in the background
   return null;

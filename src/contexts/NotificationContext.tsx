@@ -16,6 +16,7 @@ export interface Notification {
 interface NotificationContextType {
   notifications: Notification[];
   showNotification: (message: string) => void;
+  dismissNotification: (id: string) => void;
 }
 
 // Create the context
@@ -45,31 +46,38 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
 }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  // Function to add a notification
-  const showNotification = useCallback((message: string) => {
-    const newNotification = {
-      id: Date.now().toString(),
-      message,
-    };
-
-    setNotifications((prevNotifications) => [
-      ...prevNotifications,
-      newNotification,
-    ]);
-
-    // Remove notification after 5 seconds
-    setTimeout(() => {
-      setNotifications((prevNotifications) =>
-        prevNotifications.filter(
-          (notification) => notification.id !== newNotification.id
-        )
-      );
-    }, 5000);
+  // Function to dismiss a notification
+  const dismissNotification = useCallback((id: string) => {
+    setNotifications((prevNotifications) =>
+      prevNotifications.filter((notification) => notification.id !== id)
+    );
   }, []);
+
+  // Function to add a notification
+  const showNotification = useCallback(
+    (message: string) => {
+      const newNotification = {
+        id: Date.now().toString(),
+        message,
+      };
+
+      setNotifications((prevNotifications) => [
+        ...prevNotifications,
+        newNotification,
+      ]);
+
+      // Remove notification after 5 seconds
+      setTimeout(() => {
+        dismissNotification(newNotification.id);
+      }, 5000);
+    },
+    [dismissNotification]
+  );
 
   const value = {
     notifications,
     showNotification,
+    dismissNotification,
   };
 
   return (
