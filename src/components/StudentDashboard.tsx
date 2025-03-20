@@ -11,6 +11,7 @@ import {
   getDocs,
   doc,
   updateDoc,
+  getDoc,
 } from "firebase/firestore";
 import { db } from "../firebase";
 
@@ -29,6 +30,30 @@ interface Schedule {
   isRecurring: boolean;
 }
 
+// Define Course interface
+interface Course {
+  id: string;
+  title: string;
+  code: string;
+  level: string;
+  description: string;
+  department: string;
+  duration: number;
+  credits: number;
+  modules: string[];
+  coordinator: string;
+  status: string;
+}
+
+// Define Enrollment interface
+interface Enrollment {
+  id: string;
+  courseId: string;
+  academicYear: string;
+  semester: number;
+  status: string;
+}
+
 export default function StudentDashboard() {
   const { userData, logout, currentUser } = useAuth();
   const { showNotification } = useNotification();
@@ -40,6 +65,12 @@ export default function StudentDashboard() {
   const [schedulesLoading, setSchedulesLoading] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Courses state
+  const [enrolledCourses, setEnrolledCourses] = useState<
+    (Course & { enrollment: Enrollment })[]
+  >([]);
+  const [coursesLoading, setCoursesLoading] = useState(true);
 
   // Profile state
   const [isEditing, setIsEditing] = useState(false);
@@ -102,7 +133,69 @@ export default function StudentDashboard() {
     }
 
     fetchStudentSchedules();
-  }, [userData, navigate, showNotification]);
+
+    // Fetch enrolled courses
+    async function fetchEnrolledCourses() {
+      if (!currentUser) return;
+
+      try {
+        setCoursesLoading(true);
+
+        // Get student enrollments
+        const enrollmentsCollection = collection(db, "enrollments");
+        const enrollmentsQuery = query(
+          enrollmentsCollection,
+          where("studentId", "==", currentUser.uid)
+        );
+        const enrollmentsSnapshot = await getDocs(enrollmentsQuery);
+
+        if (enrollmentsSnapshot.empty) {
+          setCoursesLoading(false);
+          return;
+        }
+
+        // Get course details for each enrollment
+        const coursesWithEnrollment = await Promise.all(
+          enrollmentsSnapshot.docs.map(async (enrollmentDoc) => {
+            const enrollmentData = enrollmentDoc.data() as Enrollment;
+            enrollmentData.id = enrollmentDoc.id;
+
+            // Get course data
+            const courseRef = doc(db, "courses", enrollmentData.courseId);
+            const courseSnapshot = await getDoc(courseRef);
+
+            if (courseSnapshot.exists()) {
+              const courseData = courseSnapshot.data() as Course;
+              return {
+                ...courseData,
+                id: enrollmentData.courseId,
+                enrollment: enrollmentData,
+              };
+            }
+            return null;
+          })
+        );
+
+        // Filter out null values and set state
+        const validCourses = coursesWithEnrollment.filter(
+          (course): course is Course & { enrollment: Enrollment } =>
+            course !== null
+        );
+        setEnrolledCourses(validCourses);
+
+        if (validCourses.length > 0) {
+          showNotification(`Found ${validCourses.length} enrolled courses`);
+        }
+      } catch (err) {
+        console.error("Error fetching enrolled courses:", err);
+        showNotification("Failed to load your enrolled courses");
+      } finally {
+        setCoursesLoading(false);
+      }
+    }
+
+    fetchEnrolledCourses();
+  }, [userData, navigate, showNotification, currentUser]);
 
   // Load profile data when component mounts or activeSection changes to profile
   useEffect(() => {
@@ -185,6 +278,8 @@ export default function StudentDashboard() {
         return renderDashboardSection();
       case "classes":
         return renderClassesSection();
+      case "courses":
+        return renderCoursesSection();
       case "materials":
         return renderMaterialsSection();
       case "profile":
@@ -205,7 +300,10 @@ export default function StudentDashboard() {
       {/* Student Dashboard Cards */}
       <div className="row g-4 mb-5">
         <div className="col-sm-6 col-lg-3">
-          <div className="dashboard-card">
+          <div
+            className="dashboard-card"
+            onClick={() => setActiveSection("classes")}
+          >
             <div className="d-flex align-items-center justify-content-between mb-3">
               <h5 className="mb-0">My Classes</h5>
               <div className="bg-primary bg-opacity-10 rounded-circle p-2">
@@ -217,19 +315,25 @@ export default function StudentDashboard() {
         </div>
 
         <div className="col-sm-6 col-lg-3">
-          <div className="dashboard-card">
+          <div
+            className="dashboard-card"
+            onClick={() => setActiveSection("courses")}
+          >
             <div className="d-flex align-items-center justify-content-between mb-3">
-              <h5 className="mb-0">Events</h5>
+              <h5 className="mb-0">My Courses</h5>
               <div className="bg-success bg-opacity-10 rounded-circle p-2">
-                <i className="bi bi-calendar-event fs-4 text-success"></i>
+                <i className="bi bi-book fs-4 text-success"></i>
               </div>
             </div>
-            <p className="text-muted mb-0">Upcoming campus events</p>
+            <p className="text-muted mb-0">View your enrolled courses</p>
           </div>
         </div>
 
         <div className="col-sm-6 col-lg-3">
-          <div className="dashboard-card">
+          <div
+            className="dashboard-card"
+            onClick={() => setActiveSection("materials")}
+          >
             <div className="d-flex align-items-center justify-content-between mb-3">
               <h5 className="mb-0">Resources</h5>
               <div className="bg-warning bg-opacity-10 rounded-circle p-2">
@@ -243,12 +347,12 @@ export default function StudentDashboard() {
         <div className="col-sm-6 col-lg-3">
           <div className="dashboard-card">
             <div className="d-flex align-items-center justify-content-between mb-3">
-              <h5 className="mb-0">Reservations</h5>
+              <h5 className="mb-0">Events</h5>
               <div className="bg-danger bg-opacity-10 rounded-circle p-2">
-                <i className="bi bi-building fs-4 text-danger"></i>
+                <i className="bi bi-calendar-event fs-4 text-danger"></i>
               </div>
             </div>
-            <p className="text-muted mb-0">Book study spaces and equipment</p>
+            <p className="text-muted mb-0">View upcoming events</p>
           </div>
         </div>
       </div>
@@ -384,6 +488,80 @@ export default function StudentDashboard() {
         <i className="bi bi-calendar-check fs-1 text-muted"></i>
         <p className="mt-3 text-muted">Your class schedule will appear here</p>
       </div>
+    </div>
+  );
+
+  // Courses section
+  const renderCoursesSection = () => (
+    <div className="slide-in section-content">
+      <div className="section-title mb-4">
+        <i className="bi bi-book"></i>
+        My Enrolled Courses
+      </div>
+
+      {coursesLoading ? (
+        <div className="text-center py-5">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+          <p className="mt-3 text-muted">Loading your courses...</p>
+        </div>
+      ) : enrolledCourses.length === 0 ? (
+        <div className="text-center py-5">
+          <i className="bi bi-book fs-1 text-muted"></i>
+          <p className="mt-3 text-muted">
+            You are not enrolled in any courses yet
+          </p>
+        </div>
+      ) : (
+        <div className="card shadow-sm border-0">
+          <div className="card-body p-0">
+            <div className="table-responsive">
+              <table className="table table-hover mb-0">
+                <thead className="table-light">
+                  <tr>
+                    <th>Course</th>
+                    <th>Department</th>
+                    <th>Level</th>
+                    <th>Credits</th>
+                    <th>Academic Year</th>
+                    <th>Semester</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {enrolledCourses.map((course) => (
+                    <tr key={course.id}>
+                      <td>
+                        <div className="d-flex flex-column">
+                          <span className="fw-medium">{course.title}</span>
+                          <small className="text-muted">{course.code}</small>
+                        </div>
+                      </td>
+                      <td>{course.department}</td>
+                      <td>{course.level}</td>
+                      <td>{course.credits}</td>
+                      <td>{course.enrollment.academicYear}</td>
+                      <td>{course.enrollment.semester}</td>
+                      <td>
+                        <span
+                          className={`badge bg-${
+                            course.enrollment.status === "Active"
+                              ? "success"
+                              : "warning"
+                          }`}
+                        >
+                          {course.enrollment.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -827,41 +1005,53 @@ export default function StudentDashboard() {
         </div>
 
         <div className="admin-sidebar-body">
-          <div
-            className={`admin-menu-item ${
-              activeSection === "dashboard" ? "active" : ""
-            }`}
-            onClick={() => setActiveSection("dashboard")}
-          >
-            <i className="bi bi-speedometer2"></i>
-            <span>Dashboard</span>
-          </div>
-          <div
-            className={`admin-menu-item ${
-              activeSection === "classes" ? "active" : ""
-            }`}
-            onClick={() => setActiveSection("classes")}
-          >
-            <i className="bi bi-calendar-check"></i>
-            <span>My Classes</span>
-          </div>
-          <div
-            className={`admin-menu-item ${
-              activeSection === "materials" ? "active" : ""
-            }`}
-            onClick={() => setActiveSection("materials")}
-          >
-            <i className="bi bi-folder"></i>
-            <span>Materials</span>
-          </div>
-          <div
-            className={`admin-menu-item ${
-              activeSection === "profile" ? "active" : ""
-            }`}
-            onClick={() => setActiveSection("profile")}
-          >
-            <i className="bi bi-person-circle"></i>
-            <span>Profile</span>
+          {/* Sidebar Menu Items */}
+          <div className="admin-menu">
+            <div
+              className={`admin-menu-item ${
+                activeSection === "dashboard" ? "active" : ""
+              }`}
+              onClick={() => setActiveSection("dashboard")}
+            >
+              <i className="bi bi-speedometer2"></i>
+              <span>Dashboard</span>
+            </div>
+            <div
+              className={`admin-menu-item ${
+                activeSection === "classes" ? "active" : ""
+              }`}
+              onClick={() => setActiveSection("classes")}
+            >
+              <i className="bi bi-calendar-check"></i>
+              <span>My Classes</span>
+            </div>
+            <div
+              className={`admin-menu-item ${
+                activeSection === "courses" ? "active" : ""
+              }`}
+              onClick={() => setActiveSection("courses")}
+            >
+              <i className="bi bi-book"></i>
+              <span>My Courses</span>
+            </div>
+            <div
+              className={`admin-menu-item ${
+                activeSection === "materials" ? "active" : ""
+              }`}
+              onClick={() => setActiveSection("materials")}
+            >
+              <i className="bi bi-folder"></i>
+              <span>Materials</span>
+            </div>
+            <div
+              className={`admin-menu-item ${
+                activeSection === "profile" ? "active" : ""
+              }`}
+              onClick={() => setActiveSection("profile")}
+            >
+              <i className="bi bi-person-circle"></i>
+              <span>Profile</span>
+            </div>
           </div>
         </div>
 
