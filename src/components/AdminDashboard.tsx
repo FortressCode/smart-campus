@@ -83,8 +83,8 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [error, setError] = useState<string>("");
+  const [success, setSuccess] = useState<string>("");
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [selectedRole, setSelectedRole] = useState("");
   const [roleUpdated, setRoleUpdated] = useState(false);
@@ -171,6 +171,10 @@ export default function AdminDashboard() {
   const [filteredActivities, setFilteredActivities] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [dateFilter, setDateFilter] = useState("");
+
+  // For modules fetch
+  const [modules, setModules] = useState<Module[]>([]);
+  const [lecturers, setLecturers] = useState<User[]>([]);
 
   // Function to fetch users from Firestore
   const fetchUsers = async () => {
@@ -769,7 +773,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Delete User Confirmation Modal */}
+      {/* Delete User Modal */}
       {showDeleteModal && userToDelete && (
         <div
           className="modal d-block"
@@ -1221,23 +1225,38 @@ export default function AdminDashboard() {
                       <div className="row mb-3">
                         <div className="col-md-6 mb-3 mb-md-0">
                           <label className="form-label">Module Title</label>
-                          <input
-                            type="text"
-                            className="form-control"
+                          <select
+                            className="form-select"
                             value={moduleTitle}
                             onChange={(e) => setModuleTitle(e.target.value)}
                             required
-                          />
+                          >
+                            <option value="">Select a module</option>
+                            {modules.map((module) => (
+                              <option key={module.id} value={module.title}>
+                                {module.title}
+                              </option>
+                            ))}
+                          </select>
                         </div>
                         <div className="col-md-6">
                           <label className="form-label">Lecturer Name</label>
-                          <input
-                            type="text"
-                            className="form-control"
+                          <select
+                            className="form-select"
                             value={lecturerName}
                             onChange={(e) => setLecturerName(e.target.value)}
                             required
-                          />
+                          >
+                            <option value="">Select a lecturer</option>
+                            {lecturers.map((lecturer) => (
+                              <option
+                                key={lecturer.id}
+                                value={lecturer.name || ""}
+                              >
+                                {lecturer.name || "Unknown"}
+                              </option>
+                            ))}
+                          </select>
                         </div>
                       </div>
 
@@ -3382,6 +3401,52 @@ export default function AdminDashboard() {
       </div>
     </div>
   );
+
+  // Fetch modules and lecturers for schedule form
+  useEffect(() => {
+    if (activeSection === "schedules") {
+      fetchModules();
+      fetchLecturers();
+    }
+  }, [activeSection]);
+
+  // Fetch modules from Firestore
+  const fetchModules = async () => {
+    try {
+      const modulesCollection = collection(db, "modules");
+      const moduleSnapshot = await getDocs(modulesCollection);
+      const moduleList = moduleSnapshot.docs.map(
+        (doc) =>
+          ({
+            id: doc.id,
+            ...doc.data(),
+          } as Module)
+      );
+
+      setModules(moduleList);
+    } catch (err) {
+      console.error("Error fetching modules:", err);
+      setError("Failed to load modules. Please try again.");
+    }
+  };
+
+  // Fetch lecturers from Firestore
+  const fetchLecturers = async () => {
+    try {
+      const userCollection = collection(db, "users");
+      const q = query(userCollection, where("role", "==", "lecturer"));
+      const userSnapshot = await getDocs(q);
+      const lecturerList = userSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as User[];
+
+      setLecturers(lecturerList);
+    } catch (err) {
+      console.error("Error fetching lecturers:", err);
+      setError("Failed to load lecturers. Please try again.");
+    }
+  };
 
   // Main render - ensure content is wrapped properly
   return (

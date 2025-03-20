@@ -55,6 +55,14 @@ interface Enrollment {
   status: string;
 }
 
+// Define Module interface
+interface Module {
+  id: string;
+  title: string;
+  description: string;
+  // Add any other necessary properties
+}
+
 export default function StudentDashboard() {
   const { userData, logout, currentUser } = useAuth();
   const { showNotification } = useNotification();
@@ -89,6 +97,11 @@ export default function StudentDashboard() {
   // Logo URL for collapsed sidebar
   const logoUrl =
     "https://png.pngtree.com/png-vector/20220922/ourmid/pngtree-letter-v-icon-png-image_6210719.png";
+
+  // New state for student modules and schedules
+  const [studentModules, setStudentModules] = useState<Module[]>([]);
+  const [modulesLoading, setModulesLoading] = useState<boolean>(true);
+  const [studentSchedules, setStudentSchedules] = useState<Schedule[]>([]);
 
   // Function to toggle sidebar
   const toggleSidebar = () => {
@@ -188,12 +201,106 @@ export default function StudentDashboard() {
 
         if (validCourses.length > 0) {
           showNotification(`Found ${validCourses.length} enrolled courses`);
+
+          // After getting courses, fetch the modules for these courses
+          await fetchStudentModules(validCourses);
         }
       } catch (err) {
         console.error("Error fetching enrolled courses:", err);
         showNotification("Failed to load your enrolled courses");
       } finally {
         setCoursesLoading(false);
+      }
+    }
+
+    // Fetch modules for the student's enrolled courses
+    async function fetchStudentModules(
+      courses: (Course & { enrollment: Enrollment })[]
+    ) {
+      try {
+        setModulesLoading(true);
+
+        // Get all module IDs from the enrolled courses
+        const moduleIds: string[] = [];
+        courses.forEach((course) => {
+          if (course.modules && Array.isArray(course.modules)) {
+            moduleIds.push(...course.modules);
+          }
+        });
+
+        if (moduleIds.length === 0) {
+          setModulesLoading(false);
+          return;
+        }
+
+        // Fetch module details
+        const modulesData: Module[] = [];
+
+        // Fetch in batches of 10 due to Firestore limitations
+        const batchSize = 10;
+        for (let i = 0; i < moduleIds.length; i += batchSize) {
+          const batch = moduleIds.slice(i, i + batchSize);
+
+          const modulesCollection = collection(db, "modules");
+          const modulesQuery = query(
+            modulesCollection,
+            where("id", "in", batch)
+          );
+
+          try {
+            const moduleSnapshot = await getDocs(modulesQuery);
+            const batchModules = moduleSnapshot.docs.map(
+              (doc) =>
+                ({
+                  id: doc.id,
+                  ...doc.data(),
+                } as Module)
+            );
+
+            modulesData.push(...batchModules);
+          } catch (error) {
+            console.error("Error fetching module batch:", error);
+          }
+        }
+
+        setStudentModules(modulesData);
+
+        // After getting modules, fetch class schedules for these modules
+        await fetchClassSchedulesForModules(modulesData);
+      } catch (err) {
+        console.error("Error fetching student modules:", err);
+      } finally {
+        setModulesLoading(false);
+      }
+    }
+
+    // Fetch class schedules for the student's modules
+    async function fetchClassSchedulesForModules(modules: Module[]) {
+      try {
+        if (modules.length === 0) return;
+
+        const schedulesCollection = collection(db, "schedules");
+        const scheduleSnapshot = await getDocs(schedulesCollection);
+
+        const allSchedules = scheduleSnapshot.docs.map(
+          (doc) =>
+            ({
+              id: doc.id,
+              ...doc.data(),
+            } as Schedule)
+        );
+
+        // Filter schedules for the student's modules
+        const relevantSchedules = allSchedules.filter((schedule) => {
+          return modules.some(
+            (module) => schedule.moduleTitle === module.title
+          );
+        });
+
+        setStudentSchedules(relevantSchedules);
+        console.log("Student's class schedules:", relevantSchedules);
+      } catch (err) {
+        console.error("Error fetching class schedules:", err);
       }
     }
 
@@ -486,11 +593,67 @@ export default function StudentDashboard() {
         My Classes
       </div>
 
-      {/* Class content would go here */}
-      <div className="text-center py-5">
-        <i className="bi bi-calendar-check fs-1 text-muted"></i>
-        <p className="mt-3 text-muted">Your class schedule will appear here</p>
-      </div>
+      {schedulesLoading || modulesLoading ? (
+        <div className="text-center py-5">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+          <p className="mt-3 text-muted">Loading your classes...</p>
+        </div>
+      ) : studentSchedules.length === 0 ? (
+        <div className="text-center py-5">
+          <i className="bi bi-calendar-x fs-1 text-muted"></i>
+          <p className="mt-3 text-muted">
+            No classes found for your enrolled courses
+          </p>
+        </div>
+      ) : (
+        <div className="row g-4">
+          {studentSchedules.map((schedule) => (
+            <div className="col-md-6 col-xl-4" key={schedule.id}>
+              <div className="dashboard-card h-100">
+                <div className="d-flex justify-content-between mb-3">
+                  <div
+                    className="bg-primary bg-opacity-10 rounded-circle p-2"
+                    style={{ width: "48px", height: "48px" }}
+                  >
+                    <i className="bi bi-calendar-check fs-4 text-primary"></i>
+                  </div>
+                  <span className="badge bg-primary">{schedule.dayOfWeek}</span>
+                </div>
+                <h5 className="card-title mb-1">{schedule.moduleTitle}</h5>
+                <p className="text-muted small mb-3">
+                  <i className="bi bi-person me-1"></i>
+                  {schedule.lecturerName}
+                </p>
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <span className="text-muted small">
+                    <i className="bi bi-clock me-1"></i>
+                    {schedule.startTime} - {schedule.endTime}
+                  </span>
+                  <span className="text-muted small">
+                    <i className="bi bi-geo-alt me-1"></i>
+                    {schedule.floorNumber}-{schedule.classroomNumber}
+                  </span>
+                </div>
+                <div className="d-flex mt-3">
+                  <button
+                    className="btn btn-sm btn-outline-primary w-100"
+                    onClick={() => {
+                      showNotification(
+                        `Added ${schedule.moduleTitle} to calendar`
+                      );
+                    }}
+                  >
+                    <i className="bi bi-calendar-plus me-1"></i>
+                    Add to Calendar
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 
