@@ -205,14 +205,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const inactiveTime = currentTime - lastActivityTime;
       const timeoutMilliseconds = timeoutMinutes * 60 * 1000;
 
-      console.log(
-        `Inactive for ${Math.floor(
-          inactiveTime / 1000
-        )} seconds. Timeout set to ${timeoutMinutes} minutes (${
-          timeoutMilliseconds / 1000
-        } seconds)`
-      );
-
       if (inactiveTime > timeoutMilliseconds) {
         // User has been inactive for too long, log them out
         console.log(
