@@ -65,6 +65,9 @@ import { User } from "../interfaces/User";
 
 import ClassroomManagement from "./ClassroomManagement";
 
+// Import the FacilityReports component
+import FacilityReports from "./FacilityReports";
+
 export default function AdminDashboard() {
   const {
     currentUser,
@@ -303,6 +306,25 @@ export default function AdminDashboard() {
               </button>
             </div>
             <ClassroomManagement />
+          </div>
+        );
+      case "facilityReports":
+        return (
+          <div className="slide-in section-content">
+            <div className="section-title mb-4 d-flex justify-content-between align-items-center">
+              <div>
+                <i className="bi bi-bar-chart"></i>
+                Facility Usage Reports
+              </div>
+              <button
+                className="btn btn-sm btn-outline-secondary"
+                onClick={() => setActiveSection("resources")}
+              >
+                <i className="bi bi-arrow-left me-1"></i>
+                Back to Resources
+              </button>
+            </div>
+            <FacilityReports />
           </div>
         );
       case "settings":
@@ -983,7 +1005,10 @@ export default function AdminDashboard() {
             <p className="text-muted mb-3">
               Campus facilities management and maintenance.
             </p>
-            <button className="btn btn-sm btn-outline-danger">
+            <button
+              className="btn btn-sm btn-outline-danger"
+              onClick={() => setActiveSection("facilityReports")}
+            >
               Facility Reports
             </button>
           </div>
